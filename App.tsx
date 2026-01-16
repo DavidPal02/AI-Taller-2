@@ -28,38 +28,12 @@ const Toast = ({ message, onClose }: { message: string, onClose: () => void }) =
   </motion.div>
 );
 
-const ConfigErrorView = () => (
-  <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
-    <div className="max-w-md bg-slate-900 border border-red-500/30 p-8 rounded-3xl shadow-2xl">
-      <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-        <AlertTriangle className="text-red-500 w-8 h-8" />
-      </div>
-      <h2 className="text-2xl font-bold text-white mb-4">Configuración Requerida</h2>
-      <p className="text-slate-400 mb-6 leading-relaxed">
-        No se han detectado las variables de entorno de Supabase (<code className="text-blue-400">VITE_SUPABASE_URL</code> y <code className="text-blue-400">VITE_SUPABASE_ANON_KEY</code>).
-      </p>
-      <p className="text-slate-500 text-sm">
-        Para que el SaaS funcione correctamente, debes configurar tu proyecto de Supabase y añadir las claves en el panel de control de tu hosting (Vercel, Netlify, etc.).
-      </p>
-    </div>
-  </div >
-);
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [notification, setNotification] = useState<string | null>(null);
-
-  // Check if Supabase is properly configured
-  const isConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-
   useEffect(() => {
-    if (!isConfigured) {
-      setIsLoading(false);
-      return;
-    }
-
     // Check initial session
     const checkAuth = async () => {
       try {
@@ -89,7 +63,7 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [isConfigured]);
+  }, []);
 
   const handleLogout = async () => {
     await authService.logout();
@@ -126,10 +100,6 @@ const App: React.FC = () => {
         );
     }
   };
-
-  if (!isConfigured) {
-    return <ConfigErrorView />;
-  }
 
   if (isLoading) {
     return (
