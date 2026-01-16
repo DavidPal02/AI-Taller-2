@@ -17,7 +17,7 @@ import { AlertTriangle, ServerCrash } from 'lucide-react';
 
 // Simple Toast Component for Notifications
 const Toast = ({ message, onClose }: { message: string, onClose: () => void }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 50, x: '-50%' }}
     animate={{ opacity: 1, y: 0, x: '-50%' }}
     exit={{ opacity: 0, y: 20, x: '-50%' }}
@@ -36,13 +36,13 @@ const ConfigErrorView = () => (
       </div>
       <h2 className="text-2xl font-bold text-white mb-4">Configuración Requerida</h2>
       <p className="text-slate-400 mb-6 leading-relaxed">
-        No se han detectado las variables de entorno de Supabase (<code className="text-blue-400">SUPABASE_URL</code> y <code className="text-blue-400">SUPABASE_ANON_KEY</code>). 
+        No se han detectado las variables de entorno de Supabase (<code className="text-blue-400">VITE_SUPABASE_URL</code> y <code className="text-blue-400">VITE_SUPABASE_ANON_KEY</code>).
       </p>
       <p className="text-slate-500 text-sm">
         Para que el SaaS funcione correctamente, debes configurar tu proyecto de Supabase y añadir las claves en el panel de control de tu hosting (Vercel, Netlify, etc.).
       </p>
     </div>
-  </div>
+  </div >
 );
 
 const App: React.FC = () => {
@@ -52,7 +52,7 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   // Check if Supabase is properly configured
-  const isConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  const isConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
     if (!isConfigured) {
@@ -62,14 +62,14 @@ const App: React.FC = () => {
 
     // Check initial session
     const checkAuth = async () => {
-        try {
-          const user = await authService.getCurrentUser();
-          setCurrentUser(user);
-        } catch (err) {
-          console.error("Error checking auth status:", err);
-        } finally {
-          setIsLoading(false);
-        }
+      try {
+        const user = await authService.getCurrentUser();
+        setCurrentUser(user);
+      } catch (err) {
+        console.error("Error checking auth status:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     checkAuth();
 
@@ -133,23 +133,23 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center text-white font-sans">
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <div className="animate-pulse tracking-widest text-sm uppercase">Taller Peter Manager</div>
-            </div>
+      <div className="min-h-screen bg-black flex items-center justify-center text-white font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="animate-pulse tracking-widest text-sm uppercase">Taller Peter Manager</div>
         </div>
+      </div>
     );
   }
 
   if (!currentUser) {
-    return <Auth onLogin={() => {}} />; // Session handled by listener
+    return <Auth onLogin={() => { }} />; // Session handled by listener
   }
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500/30">
       <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
-      
+
       <main className="flex-1 ml-0 md:ml-64 h-screen relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black pb-16 md:pb-0">
         <AnimatePresence mode="wait">
           <motion.div
