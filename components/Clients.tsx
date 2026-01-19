@@ -1,0 +1,184 @@
+
+import React, { useEffect, useState } from 'react';
+import { dbService } from '../services/dbService';
+import { Client, Vehicle } from '../types';
+import { Search, Phone, Mail, MapPin, Car, Plus, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+export const Clients: React.FC = () => {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', phone: '', email: '', address: '' });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const [cData, vData] = await Promise.all([
+      dbService.getClients(),
+      dbService.getVehicles()
+    ]);
+    setClients(cData);
+    setVehicles(vData);
+  };
+
+  const handleAddClient = async () => {
+    if (!newClient.name) return;
+    const client: Client = {
+      id: crypto.randomUUID(),
+      name: newClient.name,
+      phone: newClient.phone,
+      email: newClient.email,
+      address: newClient.address,
+      createdAt: new Date().toISOString()
+    };
+    await dbService.addClient(client);
+    setClients([client, ...clients]);
+    setIsModalOpen(false);
+    setNewClient({ name: '', phone: '', email: '', address: '' });
+  };
+
+  const filteredClients = clients.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+
+  const getClientVehicles = (clientId: string) => {
+      return vehicles.filter(v => v.clientId === clientId);
+  };
+
+  return (
+    <div className="p-8 h-full overflow-hidden flex flex-col">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Clientes</h2>
+          <p className="text-slate-400 mt-1">Directorio de propietarios de vehículos.</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors shadow-lg shadow-blue-900/20"
+        >
+          <Plus className="w-5 h-5" />
+          <span className="font-medium">Nuevo Cliente</span>
+        </button>
+      </div>
+
+      <div className="mb-6 relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+        <input 
+          type="text" 
+          placeholder="Buscar por nombre, teléfono o correo..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-slate-800 border border-slate-700 text-white pl-12 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-4 custom-scrollbar flex-1">
+        {filteredClients.map((client, i) => {
+          const clientCars = getClientVehicles(client.id);
+
+          return (
+            <motion.div
+              key={client.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 p-6 rounded-2xl group transition-all hover:border-blue-500/50 flex flex-col h-fit"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                  {client.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors truncate max-w-[150px]">{client.name}</h3>
+                  <span className="text-[10px] text-slate-500 font-mono">ID: {client.id.slice(0,8)}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-3 text-sm text-slate-300 mb-4">
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  {client.phone}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  {client.email || 'No especificado'}
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-slate-500" />
+                  <span className="truncate">{client.address || 'Sin dirección'}</span>
+                </div>
+              </div>
+
+              <div className="mt-auto border-t border-slate-700 pt-4">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Car className="w-3 h-3" /> Vehículos ({clientCars.length})
+                  </h4>
+                  <div className="space-y-2">
+                      {clientCars.length > 0 ? (
+                          clientCars.map(car => (
+                              <div key={car.id} className="bg-slate-900/50 rounded-lg p-2 text-xs flex justify-between items-center border border-slate-700/50">
+                                  <span className="text-slate-300">{car.make} {car.model}</span>
+                                  <span className="font-mono text-blue-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded">{car.plate}</span>
+                              </div>
+                          ))
+                      ) : (
+                          <p className="text-xs text-slate-600 italic">No tiene vehículos registrados.</p>
+                      )}
+                  </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Nuevo Cliente</h3>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X /></button>
+              </div>
+              <div className="space-y-4">
+                <input 
+                  placeholder="Nombre Completo" 
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white"
+                  value={newClient.name}
+                  onChange={e => setNewClient({...newClient, name: e.target.value})}
+                />
+                <input 
+                  placeholder="Teléfono" 
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white"
+                  value={newClient.phone}
+                  onChange={e => setNewClient({...newClient, phone: e.target.value})}
+                />
+                <input 
+                  placeholder="Email" 
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white"
+                  value={newClient.email}
+                  onChange={e => setNewClient({...newClient, email: e.target.value})}
+                />
+                <input 
+                  placeholder="Dirección" 
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white"
+                  value={newClient.address}
+                  onChange={e => setNewClient({...newClient, address: e.target.value})}
+                />
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 px-4 py-2">Cancelar</button>
+                <button onClick={handleAddClient} className="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold">Crear</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
