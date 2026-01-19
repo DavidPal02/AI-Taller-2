@@ -31,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout
 
   return (
     <>
-      {/* Desktop Sidebar - Se mantiene igual para escritorio */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex-col h-screen fixed left-0 top-0 shadow-2xl z-[100] overflow-hidden">
         <div className="p-8 flex items-center gap-3 border-b border-slate-800/50">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
@@ -61,26 +61,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation - Optimizada para Safe Area e iPhone 17+ */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur-3xl border-t border-white/5 z-[200] pb-[env(safe-area-inset-bottom)] shadow-[0_-15px_50px_rgba(0,0,0,0.8)]">
-        <div className="flex justify-around items-center h-20 px-4 relative">
+      {/* Mobile Bottom Navigation - Diseño Premium e Inmersivo */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur-3xl border-t border-white/5 z-[500] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+        {/* Barra de altura optimizada para dedo pulgar */}
+        <div className="flex justify-around items-center h-24 px-4 pt-1 pb-[env(safe-area-inset-bottom)]">
           {mobilePrimaryItems.map((item) => {
             const isActive = currentView === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => handleMobileNav(item.id)}
-                className={`flex flex-col items-center justify-center w-16 h-full transition-all duration-500 relative ${
+                className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 relative ${
                   isActive ? 'text-blue-500' : 'text-slate-500'
                 }`}
               >
-                <item.icon className={`w-6 h-6 mb-1.5 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_12px_rgba(59,130,246,0.6)]' : ''}`} />
-                <span className="text-[9px] font-black uppercase tracking-[0.1em]">{item.label}</span>
+                <div className={`p-2 rounded-2xl mb-1 transition-all ${isActive ? 'bg-blue-600/10 scale-110' : ''}`}>
+                    <item.icon className={`w-6 h-6 transition-transform ${isActive ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]' : ''}`} />
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity ${isActive ? 'opacity-100' : 'opacity-60'}`}>{item.label}</span>
                 {isActive && (
                   <motion.div 
                     layoutId="mobileActiveInd"
-                    className="absolute top-0 w-8 h-1 bg-blue-500 rounded-b-full shadow-[0_5px_15px_rgba(59,130,246,0.4)]"
-                    transition={{ type: "spring", bounce: 0.3 }}
+                    className="absolute -top-1 w-12 h-1 bg-blue-500 rounded-b-3xl shadow-[0_4px_12px_rgba(59,130,246,0.5)]"
                   />
                 )}
               </button>
@@ -89,40 +91,62 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout
           
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="flex flex-col items-center justify-center w-16 h-full text-slate-500 active:text-white transition-colors"
+            className="flex flex-col items-center justify-center w-full h-full text-slate-500"
           >
-            <MoreHorizontal className="w-6 h-6 mb-1.5" />
-            <span className="text-[9px] font-black uppercase tracking-[0.1em]">Más</span>
+            <div className="p-2 rounded-2xl mb-1 bg-slate-800/50">
+                <MoreHorizontal className="w-6 h-6" />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Más</span>
           </button>
         </div>
       </nav>
 
-      {/* Side Drawer - Mismo estilo mejorado */}
+      {/* Side Drawer (Menú extendido) */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="md:hidden fixed inset-0 bg-slate-950/95 backdrop-blur-3xl z-[300] flex flex-col p-8 pt-[env(safe-area-inset-top)]">
-            <div className="flex justify-between items-center mb-16 mt-8">
+          <motion.div 
+            initial={{ opacity: 0, scale: 1.1 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            exit={{ opacity: 0, scale: 1.1 }} 
+            className="md:hidden fixed inset-0 bg-slate-950/98 backdrop-blur-3xl z-[1000] flex flex-col p-8 pt-[env(safe-area-inset-top)]"
+          >
+            <div className="flex justify-between items-center mb-16 mt-10 px-4">
               <div className="flex items-center gap-4">
-                 <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                 <div className="w-14 h-14 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
                     <Wrench className="text-white w-8 h-8" />
                  </div>
-                 <h2 className="text-4xl font-black text-white tracking-tighter italic">PETER</h2>
+                 <div>
+                    <h2 className="text-3xl font-black text-white italic tracking-tighter">PETER</h2>
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Premium Edition</span>
+                 </div>
               </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-5 bg-slate-800 rounded-full text-white active:scale-90 transition-transform"><X className="w-8 h-8" /></button>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-5 bg-slate-800/80 rounded-full text-white active:scale-90 transition-transform"><X className="w-8 h-8" /></button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-2 gap-4 flex-1">
               {menuItems.slice(4).map((item) => (
-                <button key={item.id} onClick={() => handleMobileNav(item.id)} className={`flex flex-col items-start gap-4 p-6 rounded-[2rem] border-2 transition-all active:scale-95 ${currentView === item.id ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
-                    <div className={`p-3 rounded-xl ${currentView === item.id ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}><item.icon className="w-6 h-6" /></div>
+                <button 
+                    key={item.id} 
+                    onClick={() => handleMobileNav(item.id)} 
+                    className={`flex flex-col items-start gap-4 p-8 rounded-[2.5rem] border-2 transition-all active:scale-95 ${
+                        currentView === item.id 
+                        ? 'bg-blue-600/10 border-blue-500 text-blue-400' 
+                        : 'bg-slate-900 border-slate-800 text-slate-500'
+                    }`}
+                >
+                    <div className={`p-4 rounded-2xl ${currentView === item.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}>
+                        <item.icon className="w-7 h-7" />
+                    </div>
                     <span className="font-black uppercase text-[10px] tracking-widest">{item.label}</span>
                 </button>
               ))}
             </div>
+
             <div className="mt-auto pb-[env(safe-area-inset-bottom)] space-y-6">
-               <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 p-6 bg-red-500/10 border-2 border-red-500/20 text-red-400 rounded-[2rem] font-black uppercase tracking-widest active:scale-95 transition-all">
-                 <LogOut className="w-6 h-6" /> Salir
+               <button onClick={onLogout} className="w-full flex items-center justify-center gap-4 p-7 bg-red-600/10 border-2 border-red-500/20 text-red-500 rounded-[2.5rem] font-black uppercase tracking-widest text-sm active:scale-95 transition-all">
+                 <LogOut className="w-6 h-6" /> CERRAR SESIÓN
                </button>
-               <p className="text-center text-[9px] text-slate-700 font-black uppercase tracking-[0.5em]">Premium Cloud Management v2.1</p>
+               <p className="text-center text-[8px] text-slate-800 font-black uppercase tracking-[0.6em]">Premium Cloud Management v2.1</p>
             </div>
           </motion.div>
         )}
