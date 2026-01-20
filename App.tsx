@@ -15,37 +15,36 @@ import { User } from './types';
 import { AlertTriangle, X, CheckCircle, PartyPopper, Sparkles, Bell } from 'lucide-react';
 
 const Toast = ({ message, onClose, type = 'info' }: { message: string, onClose: () => void, type?: 'info' | 'warning' | 'success' | 'welcome' }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 50, x: '-50%' }}
     animate={{ opacity: 1, y: 0, x: '-50%' }}
     exit={{ opacity: 0, y: 20, scale: 0.95, x: '-50%' }}
-    className={`fixed bottom-24 md:bottom-10 left-1/2 px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border z-[300] flex items-center gap-4 w-max max-w-[90vw] backdrop-blur-2xl ${
-        type === 'warning' ? 'bg-amber-900/90 border-amber-500/50 text-amber-100' : 
+    className={`fixed bottom-24 md:bottom-10 left-1/2 px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border z-[300] flex items-center gap-4 w-max max-w-[90vw] backdrop-blur-2xl ${type === 'warning' ? 'bg-amber-900/90 border-amber-500/50 text-amber-100' :
         type === 'success' ? 'bg-emerald-900/90 border-emerald-500/50 text-emerald-100' :
-        type === 'welcome' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/50 text-white shadow-emerald-500/20' :
-        'bg-slate-800/90 border-slate-700 text-white'
-    }`}
+          type === 'welcome' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/50 text-white shadow-emerald-500/20' :
+            'bg-slate-800/90 border-slate-700 text-white'
+      }`}
   >
     <div className="flex-shrink-0">
-        {type === 'warning' && <AlertTriangle className="w-6 h-6 text-amber-400" />}
-        {type === 'success' && <CheckCircle className="w-6 h-6 text-emerald-400" />}
-        {type === 'welcome' && (
-            <div className="relative">
-                <PartyPopper className="w-8 h-8 text-white animate-bounce" />
-                <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-yellow-300 animate-pulse" />
-            </div>
-        )}
+      {type === 'warning' && <AlertTriangle className="w-6 h-6 text-amber-400" />}
+      {type === 'success' && <CheckCircle className="w-6 h-6 text-emerald-400" />}
+      {type === 'welcome' && (
+        <div className="relative">
+          <PartyPopper className="w-8 h-8 text-white animate-bounce" />
+          <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-yellow-300 animate-pulse" />
+        </div>
+      )}
     </div>
     <div className="flex flex-col pr-2">
-        <span className="text-sm font-black uppercase tracking-tight">
-            {type === 'warning' ? 'Aviso de Seguridad' : 
-             type === 'welcome' ? '¡CUENTA ACTIVADA!' : 
-             'Notificación del Sistema'}
-        </span>
-        <span className="text-xs font-medium opacity-90 leading-tight">{message}</span>
+      <span className="text-sm font-black uppercase tracking-tight">
+        {type === 'warning' ? 'Aviso de Seguridad' :
+          type === 'welcome' ? '¡CUENTA ACTIVADA!' :
+            'Notificación del Sistema'}
+      </span>
+      <span className="text-xs font-medium opacity-90 leading-tight">{message}</span>
     </div>
     <button onClick={onClose} className="ml-2 p-2 hover:bg-white/10 rounded-xl transition-colors">
-        <X className="w-4 h-4" />
+      <X className="w-4 h-4" />
     </button>
   </motion.div>
 );
@@ -54,12 +53,12 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
-  const [notification, setNotification] = useState<{msg: string, type: 'info' | 'warning' | 'success' | 'welcome'} | null>(null);
+  const [notification, setNotification] = useState<{ msg: string, type: 'info' | 'warning' | 'success' | 'welcome' } | null>(null);
 
-  useEffect(() => { 
+  useEffect(() => {
     const initApp = async () => {
-        await checkAuth();
-        handleEmailVerificationDetection();
+      await checkAuth();
+      handleEmailVerificationDetection();
     };
     initApp();
   }, []);
@@ -90,14 +89,14 @@ const App: React.FC = () => {
 
   const checkAuth = async () => {
     try {
-        const user = await authService.getCurrentUser();
-        if (user) {
-            setCurrentUser(user);
-            scanVehicleAlerts();
-            requestNotificationPermission();
-        }
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        scanVehicleAlerts();
+        requestNotificationPermission();
+      }
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -105,33 +104,33 @@ const App: React.FC = () => {
     const hash = window.location.hash;
     const searchParams = new URLSearchParams(window.location.search);
     if (hash.includes('type=signup') || searchParams.get('verified') === 'true' || hash.includes('access_token')) {
-        setTimeout(() => {
-            showNotification("Felicidades has verificado tu correo con éxito. Bienvenido al SaaS", "welcome");
-        }, 1000);
-        window.history.replaceState(null, '', window.location.pathname);
+      setTimeout(() => {
+        showNotification("Felicidades has verificado tu correo con éxito. Bienvenido al SaaS", "welcome");
+      }, 1000);
+      window.history.replaceState(null, '', window.location.pathname);
     }
   };
 
   const scanVehicleAlerts = async () => {
-      const vehicles = await dbService.getVehicles();
-      let alertsCount = 0;
-      let worstAlert: string | null = null;
+    const vehicles = await dbService.getVehicles();
+    let alertsCount = 0;
+    let worstAlert: string | null = null;
 
-      vehicles.forEach(v => {
-          const itv = getItvStatus(v);
-          if (itv.status === 'expired' || itv.status === 'warning') {
-            alertsCount++;
-            if (!worstAlert) worstAlert = `El coche con matrícula ${v.plate} tiene la ITV ${itv.status === 'expired' ? 'CADUCADA' : 'próxima a caducar'}.`;
-          }
-      });
-
-      if (alertsCount > 0) {
-          showNotification(`Tienes ${alertsCount} alertas de ITV que requieren tu atención inmediata.`, 'warning');
-          // Enviamos notificación Push de sistema si hay alertas críticas
-          if (worstAlert) {
-            sendPushNotification("¡Alerta de Vehículos!", worstAlert);
-          }
+    vehicles.forEach(v => {
+      const itv = getItvStatus(v);
+      if (itv.status === 'expired' || itv.status === 'warning') {
+        alertsCount++;
+        if (!worstAlert) worstAlert = `El coche con matrícula ${v.plate} tiene la ITV ${itv.status === 'expired' ? 'CADUCADA' : 'próxima a caducar'}.`;
       }
+    });
+
+    if (alertsCount > 0) {
+      showNotification(`Tienes ${alertsCount} alertas de ITV que requieren tu atención inmediata.`, 'warning');
+      // Enviamos notificación Push de sistema si hay alertas críticas
+      if (worstAlert) {
+        sendPushNotification("¡Alerta de Vehículos!", worstAlert);
+      }
+    }
   };
 
   const handleLogin = (user: User) => {
@@ -141,9 +140,9 @@ const App: React.FC = () => {
     requestNotificationPermission();
   };
 
-  const handleLogout = async () => { 
-      await authService.logout(); 
-      setCurrentUser(null); 
+  const handleLogout = async () => {
+    await authService.logout();
+    setCurrentUser(null);
   };
 
   const showNotification = (msg: string, type: any = 'info') => {
@@ -158,27 +157,27 @@ const App: React.FC = () => {
       case 'clients': return <Clients />;
       case 'jobs': return <Jobs onNotify={(m) => showNotification(m, 'success')} />;
       case 'expenses': return <Expenses />;
-      case 'vehicles': return <Vehicles />;
+      case 'vehicles': return <Vehicles onNotify={(m) => showNotification(m, 'success')} />;
       case 'mechanics': return <Mechanics />;
-      case 'settings': return <Settings onTestPush={() => sendPushNotification("Prueba de Notificación", "Esto es una notificación Push de prueba desde tu SaaS de Taller.")} />;
+      case 'settings': return <Settings onNotify={(m, t) => showNotification(m, t)} onTestPush={() => sendPushNotification("Prueba de Notificación", "Esto es una notificación Push de prueba desde tu SaaS de Taller.")} />;
       default: return <Dashboard />;
     }
   };
 
   if (isLoading) return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <motion.div 
-          animate={{ 
-            rotate: 360,
-            scale: [1, 1.1, 1],
-          }} 
-          transition={{ 
-            rotate: { repeat: Infinity, duration: 1, ease: "linear" },
-            scale: { repeat: Infinity, duration: 2, ease: "easeInOut" }
-          }}
-          className="w-16 h-16 border-t-4 border-l-4 border-blue-600 rounded-full mb-6 shadow-[0_0_20px_rgba(37,99,235,0.3)]" 
-        />
-        <p className="text-slate-400 font-bold tracking-widest text-xs uppercase animate-pulse">Taller Peter Manager Cloud</p>
+      <motion.div
+        animate={{
+          rotate: 360,
+          scale: [1, 1.1, 1],
+        }}
+        transition={{
+          rotate: { repeat: Infinity, duration: 1, ease: "linear" },
+          scale: { repeat: Infinity, duration: 2, ease: "easeInOut" }
+        }}
+        className="w-16 h-16 border-t-4 border-l-4 border-blue-600 rounded-full mb-6 shadow-[0_0_20px_rgba(37,99,235,0.3)]"
+      />
+      <p className="text-slate-400 font-bold tracking-widest text-xs uppercase animate-pulse">Taller Peter Manager Cloud</p>
     </div>
   );
 
@@ -189,11 +188,11 @@ const App: React.FC = () => {
       <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
       <main className="flex-1 ml-0 md:ml-64 h-screen relative bg-slate-950 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div 
-            key={currentView} 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
+          <motion.div
+            key={currentView}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="h-full w-full overflow-hidden"
           >
@@ -201,13 +200,13 @@ const App: React.FC = () => {
           </motion.div>
         </AnimatePresence>
       </main>
-      
+
       <AnimatePresence>
         {notification && (
-          <Toast 
-            message={notification.msg} 
-            type={notification.type} 
-            onClose={() => setNotification(null)} 
+          <Toast
+            message={notification.msg}
+            type={notification.type}
+            onClose={() => setNotification(null)}
           />
         )}
       </AnimatePresence>

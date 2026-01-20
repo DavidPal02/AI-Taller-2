@@ -37,7 +37,6 @@ export interface Vehicle {
   plate: string;
   vin?: string;
   year: number;
-  engine?: string;
   currentMileage?: number;
   lastItvDate?: string; // Nueva: Fecha de la última ITV realizada
 }
