@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { dbService } from '../services/dbService';
 import { Vehicle, Client, Job } from '../types';
-import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp } from 'lucide-react';
+import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp, Archive, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const getItvStatus = (vehicle: Vehicle) => {
@@ -27,7 +27,7 @@ export const getItvStatus = (vehicle: Vehicle) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) return { status: 'expired', label: 'CADUCADA', color: 'text-red-500', bg: 'bg-red-500/10', date: nextDate };
-  if (diffDays <= 15) return { status: 'warning', label: 'Caduca en ' + diffDays + ' días', color: 'text-amber-500', bg: 'bg-amber-500/10', date: nextDate };
+  if (diffDays <= 30) return { status: 'warning', label: nextDate.toLocaleDateString(), color: 'text-red-500', bg: 'bg-red-500/10', date: nextDate };
   return { status: 'ok', label: 'Vigente', color: 'text-emerald-500', bg: 'bg-emerald-500/10', date: nextDate };
 };
 
@@ -44,6 +44,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [newVehicle, setNewVehicle] = useState<Partial<Vehicle>>({ make: '', model: '', plate: '', year: new Date().getFullYear(), lastItvDate: '', currentMileage: 0 });
+  const [showArchived, setShowArchived] = useState(false);
 
   // Custom Delete Modal State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean, vehicleId: string | null }>({ isOpen: false, vehicleId: null });
@@ -69,7 +70,8 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
         plate: newVehicle.plate.toUpperCase(),
         year: newVehicle.year || 2020,
         currentMileage: newVehicle.currentMileage || 0,
-        lastItvDate: newVehicle.lastItvDate
+        lastItvDate: newVehicle.lastItvDate,
+        isArchived: newVehicle.isArchived || false
       };
       await dbService.updateVehicle(v);
       setVehicles(vehicles.map(item => item.id === editingVehicleId ? v : item));
@@ -83,7 +85,8 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
         plate: newVehicle.plate.toUpperCase(),
         year: newVehicle.year || 2020,
         currentMileage: newVehicle.currentMileage || 0,
-        lastItvDate: newVehicle.lastItvDate
+        lastItvDate: newVehicle.lastItvDate,
+        isArchived: false
       };
       await dbService.addVehicle(v);
       setVehicles([...vehicles, v]);
@@ -110,6 +113,23 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
     }
   };
 
+  const handleArchiveToggle = async (vehicle: Vehicle) => {
+    if (!vehicle.isArchived) {
+      // Verificar si tiene trabajos activos (PENDING o IN_PROGRESS)
+      const activeJobs = jobs.filter(j => j.vehicleId === vehicle.id && j.status !== 'DELIVERED');
+      if (activeJobs.length > 0) {
+        if (onNotify) onNotify('No se puede archivar: Tiene trabajos pendientes');
+        return;
+      }
+    }
+
+    const updatedVehicle = { ...vehicle, isArchived: !vehicle.isArchived };
+    await dbService.updateVehicle(updatedVehicle);
+    setVehicles(vehicles.map(v => v.id === vehicle.id ? updatedVehicle : v));
+    if (onNotify) onNotify(updatedVehicle.isArchived ? 'Vehículo archivado' : 'Vehículo desarchivado');
+    setIsModalOpen(false);
+  };
+
   const openEditModal = (v: Vehicle) => {
     setNewVehicle({
       clientId: v.clientId,
@@ -118,7 +138,8 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
       plate: v.plate,
       year: v.year,
       currentMileage: v.currentMileage,
-      lastItvDate: v.lastItvDate
+      lastItvDate: v.lastItvDate,
+      isArchived: v.isArchived
     });
     setEditingVehicleId(v.id);
     setIsEditMode(true);
@@ -137,6 +158,23 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
         </button>
       </div>
 
+      <div className="flex gap-4 mb-6 border-b border-slate-700">
+        <button
+          onClick={() => setShowArchived(false)}
+          className={`pb-3 px-2 text-sm font-bold transition-colors relative ${!showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          Activos
+          {!showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
+        </button>
+        <button
+          onClick={() => setShowArchived(true)}
+          className={`pb-3 px-2 text-sm font-bold transition-colors relative ${showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          Archivados
+          {showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
+        </button>
+      </div>
+
       <div className="mb-6 relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
@@ -148,7 +186,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-y-auto custom-scrollbar pb-8">
-        {vehicles.filter(v => v.plate.includes(searchTerm.toUpperCase()) || v.make.toLowerCase().includes(searchTerm.toLowerCase())).map(v => {
+        {vehicles.filter(v => (v.isArchived === showArchived || (!v.isArchived && !showArchived)) && (v.plate.includes(searchTerm.toUpperCase()) || v.make.toLowerCase().includes(searchTerm.toLowerCase()))).map(v => {
           const itv = getItvStatus(v);
           return (
             <motion.div
@@ -186,7 +224,14 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white tracking-tight">{isEditMode ? 'Editar Vehículo' : 'Nuevo Vehículo'}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-bold text-white tracking-tight">{isEditMode ? 'Editar Vehículo' : 'Nuevo Vehículo'}</h3>
+                  {isEditMode && editingVehicleId && (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${newVehicle.isArchived ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                      {newVehicle.isArchived ? 'Archivado' : 'Activo'}
+                    </span>
+                  )}
+                </div>
                 <button onClick={() => { setIsModalOpen(false); setIsEditMode(false); }} className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-full transition-colors"><X className="w-5 h-5" /></button>
               </div>
               <div className="space-y-4">
@@ -221,7 +266,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
                     return (
                       <div className="flex justify-between items-center">
                         <span className={`text-sm font-bold ${preview.color} flex items-center gap-2`}>
-                          <Calendar className="w-4 h-4" /> {preview.label}
+                          <Calendar className="w-4 h-4" /> {preview.status === 'ok' ? `Vigente hasta ${preview.date?.toLocaleDateString()}` : preview.label}
                         </span>
                         {preview.date && <span className="text-xs font-mono text-slate-400">{preview.date.toLocaleDateString()}</span>}
                       </div>
@@ -280,9 +325,20 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
                   </div>
                 )}
               </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button onClick={() => { setIsModalOpen(false); setIsEditMode(false); }} className="text-slate-400 px-4 py-2 hover:text-white font-bold transition-colors">Cancelar</button>
-                <button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded-xl font-bold transition-colors shadow-lg shadow-blue-900/20 active:scale-95">{isEditMode ? 'Guardar Cambios' : 'Guardar'}</button>
+              <div className="mt-8 flex justify-between gap-3">
+                {isEditMode && editingVehicleId && (
+                  <button
+                    onClick={() => handleArchiveToggle(vehicles.find(v => v.id === editingVehicleId)!)}
+                    className={`px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2 ${newVehicle.isArchived ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30'}`}
+                  >
+                    {newVehicle.isArchived ? <RefreshCw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                    {newVehicle.isArchived ? 'Desarchivar' : 'Archivar'}
+                  </button>
+                )}
+                <div className="flex gap-3 ml-auto">
+                  <button onClick={() => { setIsModalOpen(false); setIsEditMode(false); }} className="text-slate-400 px-4 py-2 hover:text-white font-bold transition-colors">Cancelar</button>
+                  <button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded-xl font-bold transition-colors shadow-lg shadow-blue-900/20 active:scale-95">{isEditMode ? 'Guardar Cambios' : 'Guardar'}</button>
+                </div>
               </div>
             </motion.div>
           </div>

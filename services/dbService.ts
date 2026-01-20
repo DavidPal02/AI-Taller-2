@@ -79,16 +79,16 @@ export const dbService = {
   getVehicles: async (): Promise<Vehicle[]> => {
     const { data, error } = await supabase.from('vehicles').select('*');
     if (error) throw error;
-    return data.map(v => ({ id: v.id, clientId: v.client_id, make: v.make, model: v.model, plate: v.plate, year: v.year, currentMileage: v.current_mileage, lastItvDate: v.last_itv_date }));
+    return data.map(v => ({ id: v.id, clientId: v.client_id, make: v.make, model: v.model, plate: v.plate, year: v.year, currentMileage: v.current_mileage, lastItvDate: v.last_itv_date, isArchived: v.is_archived }));
   },
   addVehicle: async (v: Vehicle) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    const { error } = await supabase.from('vehicles').insert([{ id: v.id, user_id: userId, client_id: v.clientId, make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate }]);
+    const { error } = await supabase.from('vehicles').insert([{ id: v.id, user_id: userId, client_id: v.clientId, make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate, is_archived: v.isArchived || false }]);
     if (error) throw error;
   },
   updateVehicle: async (v: Vehicle) => {
-    const { error } = await supabase.from('vehicles').update({ make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate }).eq('id', v.id);
+    const { error } = await supabase.from('vehicles').update({ make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate, is_archived: v.isArchived }).eq('id', v.id);
     if (error) throw error;
   },
   deleteVehicle: async (id: string) => {
@@ -98,12 +98,12 @@ export const dbService = {
   getJobs: async (): Promise<Job[]> => {
     const { data, error } = await supabase.from('jobs').select('*');
     if (error) throw error;
-    return data.map(j => ({ id: j.id, vehicleId: j.vehicle_id, clientId: j.client_id, mechanicId: j.mechanic_id, description: j.description, status: j.status as JobStatus, items: j.items || [], laborHours: j.labor_hours, laborPricePerHour: j.labor_price_per_hour, entryDate: j.entry_date, mileage: j.mileage, total: j.total, isPaid: j.is_paid }));
+    return data.map(j => ({ id: j.id, vehicleId: j.vehicle_id, clientId: j.client_id, mechanicId: j.mechanic_id, description: j.description, status: j.status as JobStatus, items: j.items || [], laborHours: j.labor_hours, laborPricePerHour: j.labor_price_per_hour, entryDate: j.entry_date, mileage: j.mileage, total: j.total, isPaid: j.is_paid, isArchived: j.is_archived }));
   },
   saveJob: async (j: Job) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    const payload = { user_id: userId, vehicle_id: j.vehicleId, client_id: j.clientId, mechanic_id: j.mechanicId, description: j.description, status: j.status, items: j.items, labor_hours: j.laborHours, labor_price_per_hour: j.laborPricePerHour, entry_date: j.entryDate, mileage: j.mileage, total: j.total, is_paid: j.isPaid };
+    const payload = { user_id: userId, vehicle_id: j.vehicleId, client_id: j.clientId, mechanic_id: j.mechanicId, description: j.description, status: j.status, items: j.items, labor_hours: j.laborHours, labor_price_per_hour: j.laborPricePerHour, entry_date: j.entryDate, mileage: j.mileage, total: j.total, is_paid: j.isPaid, is_archived: j.isArchived ?? false };
     const { error } = await supabase.from('jobs').upsert([{ id: j.id, ...payload }]);
     if (error) throw error;
   },

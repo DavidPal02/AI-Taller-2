@@ -38,7 +38,8 @@ export interface Vehicle {
   vin?: string;
   year: number;
   currentMileage?: number;
-  lastItvDate?: string; // Nueva: Fecha de la última ITV realizada
+  lastItvDate?: string;
+  isArchived?: boolean;
 }
 
 export interface JobItem {
@@ -79,6 +80,7 @@ export interface Job {
   notes?: string;
   total: number;
   isPaid: boolean;
+  isArchived?: boolean;
 }
 
 export interface KPIData {

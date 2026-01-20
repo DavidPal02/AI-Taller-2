@@ -9,6 +9,7 @@ import { Vehicles, getItvStatus } from './components/Vehicles';
 import { Mechanics } from './components/Mechanics';
 import { Settings } from './components/Settings';
 import { Auth } from './components/Auth';
+import { VerifySuccess } from './components/VerifySuccess';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService, dbService } from './services/dbService';
 import { User } from './types';
@@ -20,9 +21,9 @@ const Toast = ({ message, onClose, type = 'info' }: { message: string, onClose: 
     animate={{ opacity: 1, y: 0, x: '-50%' }}
     exit={{ opacity: 0, y: 20, scale: 0.95, x: '-50%' }}
     className={`fixed bottom-24 md:bottom-10 left-1/2 px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border z-[300] flex items-center gap-4 w-max max-w-[90vw] backdrop-blur-2xl ${type === 'warning' ? 'bg-amber-900/90 border-amber-500/50 text-amber-100' :
-        type === 'success' ? 'bg-emerald-900/90 border-emerald-500/50 text-emerald-100' :
-          type === 'welcome' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/50 text-white shadow-emerald-500/20' :
-            'bg-slate-800/90 border-slate-700 text-white'
+      type === 'success' ? 'bg-emerald-900/90 border-emerald-500/50 text-emerald-100' :
+        type === 'welcome' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/50 text-white shadow-emerald-500/20' :
+          'bg-slate-800/90 border-slate-700 text-white'
       }`}
   >
     <div className="flex-shrink-0">
@@ -54,9 +55,17 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [notification, setNotification] = useState<{ msg: string, type: 'info' | 'warning' | 'success' | 'welcome' } | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
+      // Check for custom verification route
+      if (window.location.pathname === '/verify-success') {
+        setIsVerifying(true);
+        setIsLoading(false);
+        return;
+      }
+
       await checkAuth();
       handleEmailVerificationDetection();
     };
@@ -180,6 +189,8 @@ const App: React.FC = () => {
       <p className="text-slate-400 font-bold tracking-widest text-xs uppercase animate-pulse">Taller Peter Manager Cloud</p>
     </div>
   );
+
+  if (isVerifying) return <VerifySuccess onNavigateHome={() => { setIsVerifying(false); window.location.href = '/'; }} />;
 
   if (!currentUser) return <Auth onLogin={handleLogin} />;
 

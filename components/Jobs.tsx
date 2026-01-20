@@ -57,6 +57,9 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
   const [showBudgetPreview, setShowBudgetPreview] = useState(false);
   const [applyVat, setApplyVat] = useState(false);
 
+  // History / Archiving State
+  const [showHistory, setShowHistory] = useState(false);
+
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -87,6 +90,15 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
     setJobs(jobs.map(j => j.id === job.id ? updated : j));
     onNotify(`Estado: ${newStatus}`);
   };
+
+  const toggleArchiveJob = async (job: Job) => {
+    const newArchivedStatus = !job.isArchived;
+    const updated = { ...job, isArchived: newArchivedStatus };
+    await dbService.saveJob(updated);
+    setJobs(jobs.map(j => j.id === job.id ? updated : j));
+    onNotify(newArchivedStatus ? "Trabajo Archivado" : "Trabajo Recuperado de Historial");
+    if (editingJob) setEditingJob(null);
+  }
 
   const handleNewJob = () => {
     const newJob: Partial<Job> = {
@@ -170,6 +182,41 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
     return v ? `${v.make} ${v.model} (${v.plate})` : 'Desconocido';
   };
 
+  const printBudget = () => {
+    const element = document.getElementById('budget-preview-content');
+    if (!element) return;
+
+    const opt = {
+      margin: [10, 10],
+      filename: `Presupuesto_${jobForm.id?.slice(0, 8) || 'Borrador'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Create a clone for printing to modify styles without affecting UI
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.padding = '40px';
+    clone.style.background = 'white';
+    clone.style.color = 'black';
+    clone.style.width = '100%';
+    clone.style.maxWidth = '800px';
+    clone.style.height = 'auto';
+    clone.style.overflow = 'visible';
+
+    // Temporary container
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    window.html2pdf().set(opt).from(clone).save().then(() => {
+      document.body.removeChild(container);
+    });
+  };
+
   const columns = Object.values(JobStatus);
 
   return (
@@ -184,76 +231,141 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
               Control de Flujo Operativo
             </p>
           </div>
-          {/* El botón Nuevo se oculta en móvil para usar el FAB */}
-          <button onClick={handleNewJob} className="hidden md:flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-xl shadow-blue-900/20 font-black transition-all hover:scale-105 active:scale-95">
-            <Plus className="w-5 h-5" /> <span>NUEVO TRABAJO</span>
+          <div className="flex gap-3">
+            <div className="hidden md:flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+              <button onClick={() => setShowHistory(false)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!showHistory ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                ACTIVOS
+              </button>
+              <button onClick={() => setShowHistory(true)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${showHistory ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                HISTORIAL
+              </button>
+            </div>
+            <button onClick={handleNewJob} className="hidden md:flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-xl shadow-blue-900/20 font-black transition-all hover:scale-105 active:scale-95">
+              <Plus className="w-5 h-5" /> <span>NUEVO TRABAJO</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Tabs */}
+        <div className="md:hidden mt-6 flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+          <button onClick={() => setShowHistory(false)} className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${!showHistory ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>
+            ACTIVOS
+          </button>
+          <button onClick={() => setShowHistory(true)} className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${showHistory ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>
+            HISTORIAL
           </button>
         </div>
       </header>
 
-      {/* Kanban Board - Scroll horizontal optimizado */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-8 pb-32">
-        <div className="flex gap-4 md:gap-8 h-full min-w-full md:min-w-[1200px]">
-          {columns.map((status) => (
-            <div key={status} className="flex-1 min-w-[85vw] md:min-w-[350px] flex flex-col bg-slate-900/40 border border-slate-800/50 rounded-[2.5rem] p-4 md:p-6">
-              <div className="flex items-center justify-between mb-6 px-4">
-                <h3 className="font-black text-xs uppercase tracking-[0.2em] text-slate-500">{status}</h3>
-                <span className="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-full text-slate-300 border border-slate-700">
-                  {jobs.filter(j => j.status === status).length}
-                </span>
-              </div>
+      {/* Kanban Board - Scroll horizontal optimizado (Solo Activos) */}
+      {!showHistory ? (
+        <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-8 pb-32">
+          <div className="flex gap-4 md:gap-8 h-full min-w-full md:min-w-[1200px]">
+            {columns.map((status) => (
+              <div key={status} className="flex-1 min-w-[85vw] md:min-w-[350px] flex flex-col bg-slate-900/40 border border-slate-800/50 rounded-[2.5rem] p-4 md:p-6">
+                <div className="flex items-center justify-between mb-6 px-4">
+                  <h3 className="font-black text-xs uppercase tracking-[0.2em] text-slate-500">{status}</h3>
+                  <span className="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-full text-slate-300 border border-slate-700">
+                    {jobs.filter(j => j.status === status && !j.isArchived).length}
+                  </span>
+                </div>
 
-              <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1">
-                {jobs.filter(j => j.status === status).length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center opacity-20 py-10">
-                    <Wrench className="w-12 h-12 mb-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Sin tareas</span>
-                  </div>
-                ) : (
-                  jobs.filter(j => j.status === status).map((job) => (
-                    <motion.div
-                      key={job.id}
-                      layoutId={job.id}
-                      onClick={() => openEditModal(job)}
-                      className="bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50 p-5 rounded-3xl cursor-pointer group shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg">#{job.id.slice(0, 5).toUpperCase()}</span>
-                        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <h4 className="font-black text-white mb-2 text-sm leading-tight group-hover:text-blue-400 transition-colors uppercase">{job.description}</h4>
-                      <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 mb-4 bg-slate-900/50 p-2 rounded-xl">
-                        <Car className="w-4 h-4 text-blue-500" /> <span className="truncate">{getVehicleInfo(job.vehicleId)}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                        <div className="text-sm font-black text-white">{job.total.toLocaleString()} €</div>
-                        <div className="flex gap-1">
-                          {status !== JobStatus.PENDING && (
-                            <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) - 1]); }} className="p-2 hover:bg-slate-700 rounded-xl text-slate-500 active:scale-90 transition-all">
-                              <ChevronLeft className="w-4 h-4" />
-                            </button>
-                          )}
-                          {status !== JobStatus.DELIVERED && (
-                            <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) + 1]); }} className="p-2 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl active:scale-95 transition-all">
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button onClick={(e) => { e.stopPropagation(); requestDeleteJob(job.id); }} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-xl active:scale-95 transition-all">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1">
+                  {jobs.filter(j => j.status === status && !j.isArchived).length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20 py-10">
+                      <Wrench className="w-12 h-12 mb-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Sin tareas</span>
+                    </div>
+                  ) : (
+                    jobs.filter(j => j.status === status && !j.isArchived).map((job) => (
+                      <motion.div
+                        key={job.id}
+                        layoutId={job.id}
+                        onClick={() => openEditModal(job)}
+                        className="bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50 p-5 rounded-3xl cursor-pointer group shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg">#{job.id.slice(0, 5).toUpperCase()}</span>
+                          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}
+                          </span>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
+                        <h4 className="font-black text-white mb-2 text-sm leading-tight group-hover:text-blue-400 transition-colors uppercase">{job.description}</h4>
+                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 mb-4 bg-slate-900/50 p-2 rounded-xl">
+                          <Car className="w-4 h-4 text-blue-500" /> <span className="truncate">{getVehicleInfo(job.vehicleId)}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                          <div className="text-sm font-black text-white">{job.total.toLocaleString()} €</div>
+                          <div className="flex gap-1">
+                            {status !== JobStatus.PENDING && (
+                              <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) - 1]); }} className="p-2 hover:bg-slate-700 rounded-xl text-slate-500 active:scale-90 transition-all">
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                            )}
+                            {status !== JobStatus.DELIVERED && (
+                              <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) + 1]); }} className="p-2 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl active:scale-95 transition-all">
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            )}
+                            {/* Botón de Archivar solo si está entregado */}
+                            {status === JobStatus.DELIVERED && (
+                              <button onClick={(e) => { e.stopPropagation(); toggleArchiveJob(job); }} className="p-2 ml-1 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl active:scale-95 transition-all" title="Archivar Trabajo">
+                                <FileDown className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={(e) => { e.stopPropagation(); requestDeleteJob(job.id); }} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-xl active:scale-95 transition-all">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* VISTA HISTORIAL: Lista de trabajos archivados */
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-32">
+          <div className="max-w-7xl mx-auto space-y-4">
+            {jobs.filter(j => j.isArchived).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                <FileDown className="w-20 h-20 mb-6 text-slate-600" />
+                <h3 className="text-xl font-black text-white uppercase">Historial Vacío</h3>
+                <p className="text-slate-500">No hay trabajos archivados en este momento.</p>
+              </div>
+            ) : (
+              jobs.filter(j => j.isArchived).map(job => (
+                <div key={job.id} onClick={() => openEditModal(job)} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-800 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 font-black text-xs">
+                      #{job.id.slice(0, 4)}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-white uppercase text-sm mb-1">{job.description}</h4>
+                      <div className="flex items-center gap-3 text-xs text-slate-500 font-bold">
+                        <span className="flex items-center gap-1"><Car className="w-3 h-3" /> {getVehicleInfo(job.vehicleId)}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6 self-end md:self-auto">
+                    <div className="text-right">
+                      <span className="block text-2xl font-black text-slate-700 group-hover:text-slate-500 transition-colors">{job.total.toLocaleString()}€</span>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); toggleArchiveJob(job); }} className="p-3 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-xl transition-all font-bold text-xs flex items-center gap-2">
+                      <ToggleLeft className="w-4 h-4" /> RECTAURAR
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* FAB - Botón de Acción Flotante para Móvil (Ergonomía iPhone) */}
       <div className="md:hidden fixed right-6 bottom-24 z-[150]">
@@ -295,6 +407,23 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                         {vehicles.map(v => (<option key={v.id} value={v.id}>{v.plate} - {v.make} {v.model}</option>))}
                       </select>
                     </div>
+
+                    {/* Selector de Mecánico (Solo Visible al Editar) */}
+                    {jobForm.id && (
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
+                          <Users className="w-3 h-3" /> Mecánico Asignado
+                        </label>
+                        <select
+                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
+                          value={jobForm.mechanicId || ''}
+                          onChange={(e) => setJobForm({ ...jobForm, mechanicId: e.target.value })}
+                        >
+                          <option value="">Sin asignar...</option>
+                          {mechanics.map(m => (<option key={m.id} value={m.id}>{m.name} - {m.specialty}</option>))}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Descripción del Problema</label>
                       <input className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500" value={jobForm.description} onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })} placeholder="Ej: Cambio de frenos traseros" />
@@ -379,6 +508,12 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                   <button onClick={() => setShowBudgetPreview(true)} className="py-4 bg-slate-800 text-blue-400 border border-slate-700 hover:bg-slate-700 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
                     <FileText className="w-5 h-5" /> PREVISUALIZAR
                   </button>
+                  {/* Botón Archivar/Desarchivar en Modal */}
+                  {jobForm.status === JobStatus.DELIVERED && (
+                    <button onClick={() => toggleArchiveJob(jobForm as Job)} className={`py-4 border text-slate-300 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all ${jobForm.isArchived ? 'bg-blue-600/20 border-blue-500/50 hover:bg-blue-600 hover:border-transparent text-blue-100' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                      <FileDown className="w-5 h-5" /> {jobForm.isArchived ? 'RECUPERAR' : 'ARCHIVAR'}
+                    </button>
+                  )}
                   <button onClick={saveJobChanges} className="py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black tracking-tight shadow-lg shadow-blue-900/40 active:scale-95 transition-all">
                     GUARDAR
                   </button>
@@ -411,7 +546,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                   <button onClick={() => setShowBudgetPreview(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-6 h-6 text-slate-500" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 font-mono">
+                <div id="budget-preview-content" className="flex-1 overflow-y-auto p-8 font-mono">
                   {/* Header Presupuesto */}
                   <div className="flex justify-between items-start mb-8 border-b-2 border-slate-900 pb-6">
                     <div>
@@ -523,7 +658,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                 </div>
 
                 <div className="p-4 bg-white border-t border-slate-200 flex justify-end">
-                  <button onClick={() => alert("Impresión no disponible en demo")} className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
+                  <button onClick={printBudget} className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
                     <Printer className="w-5 h-5" /> Imprimir / PDF
                   </button>
                 </div>
