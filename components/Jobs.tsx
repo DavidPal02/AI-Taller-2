@@ -9,6 +9,8 @@ import saveAs from 'file-saver';
 
 interface JobBoardProps {
   onNotify: (msg: string) => void;
+  pendingJobId?: string | null;
+  onClearPendingJob?: () => void;
 }
 
 declare global {
@@ -26,7 +28,7 @@ const EditableField = ({ value, onChange, className, placeholder }: { value: str
   />
 );
 
-export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
+export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearPendingJob }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -46,9 +48,9 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
   } | null>(null);
 
   const [jobForm, setJobForm] = useState<Partial<Job>>({});
-  const [newItem, setNewItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
+  const [newItem, setNewItem] = useState<{ description: string, quantity: number | '', unitPrice: number | '' }>({ description: '', quantity: 1, unitPrice: '' });
   const [jobExpenses, setJobExpenses] = useState<Expense[]>([]);
-  const [newExpense, setNewExpense] = useState({ description: '', amount: 0 });
+  const [newExpense, setNewExpense] = useState<{ description: string, amount: number | '' }>({ description: '', amount: '' });
 
   // Custom Delete Modal State
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -61,6 +63,24 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => { loadData(); }, []);
+
+  // Effect to handle navigation from other components (e.g. Vehicles)
+  useEffect(() => {
+    if (pendingJobId && jobs.length > 0) {
+      const jobToOpen = jobs.find(j => j.id === pendingJobId);
+      if (jobToOpen) {
+        openEditModal(jobToOpen);
+        // If the job is archived, we should probably switch to history view to avoid confusion, 
+        // or just showing the modal is enough. Let's switch view if needed.
+        if (jobToOpen.isArchived) {
+          setShowHistory(true);
+        } else {
+          setShowHistory(false);
+        }
+      }
+      if (onClearPendingJob) onClearPendingJob();
+    }
+  }, [pendingJobId, jobs]);
 
   const loadData = async () => {
     const [js, vs, cs, es, ms, sets] = await Promise.all([
@@ -88,7 +108,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
     const updated = { ...job, status: newStatus };
     await dbService.saveJob(updated);
     setJobs(jobs.map(j => j.id === job.id ? updated : j));
-    onNotify(`Estado: ${newStatus}`);
+    // onNotify removed as requested
   };
 
   const toggleArchiveJob = async (job: Job) => {
@@ -96,7 +116,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
     const updated = { ...job, isArchived: newArchivedStatus };
     await dbService.saveJob(updated);
     setJobs(jobs.map(j => j.id === job.id ? updated : j));
-    onNotify(newArchivedStatus ? "Trabajo Archivado" : "Trabajo Recuperado de Historial");
+    // onNotify removed as requested
     if (editingJob) setEditingJob(null);
   }
 
@@ -128,10 +148,15 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
 
   const handleAddItem = () => {
     if (!newItem.description) return;
-    const item: JobItem = { id: crypto.randomUUID(), ...newItem };
+    const item: JobItem = {
+      id: crypto.randomUUID(),
+      description: newItem.description,
+      quantity: Number(newItem.quantity) || 1,
+      unitPrice: Number(newItem.unitPrice) || 0
+    };
     const updatedItems = [...(jobForm.items || []), item];
     recalculateTotal(updatedItems, jobForm.laborHours || 0, jobForm.laborPricePerHour || 0);
-    setNewItem({ description: '', quantity: 1, unitPrice: 0 });
+    setNewItem({ description: '', quantity: 1, unitPrice: '' });
   };
 
   const removeItem = (itemId: string) => {
@@ -145,10 +170,18 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
   };
 
   const handleAddJobExpense = () => {
-    if (!newExpense.description || newExpense.amount <= 0) return;
-    const exp: Expense = { ...newExpense, id: crypto.randomUUID(), jobId: editingJob?.id, date: new Date().toISOString(), category: 'Piezas' } as Expense;
+    if (!newExpense.description || (newExpense.amount === '' && newExpense.amount !== 0)) return;
+    const amount = Number(newExpense.amount) || 0;
+    const exp: Expense = {
+      description: newExpense.description,
+      amount,
+      id: crypto.randomUUID(),
+      jobId: editingJob?.id,
+      date: new Date().toISOString(),
+      category: 'Piezas'
+    } as Expense;
     setJobExpenses([...jobExpenses, exp]);
-    setNewExpense({ description: '', amount: 0 });
+    setNewExpense({ description: '', amount: '' });
   };
 
   const saveJobChanges = async () => {
@@ -157,7 +190,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
     const updatedJob = { ...jobForm, id: jobId } as Job;
     await dbService.saveJob(updatedJob);
     for (const exp of jobExpenses) { if (!expenses.find(e => e.id === exp.id)) await dbService.addExpense({ ...exp, jobId }); }
-    onNotify(jobForm.id ? "Actualizado" : "Creado");
+    // Notification removed as requested
     setEditingJob(null);
     loadData();
   };
@@ -424,6 +457,19 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                         </select>
                       </div>
                     )}
+                    {/* Fecha de Entrada */}
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
+                        <Clock className="w-3 h-3" /> Fecha de Entrada
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
+                        value={jobForm.entryDate ? new Date(jobForm.entryDate).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => setJobForm({ ...jobForm, entryDate: new Date(e.target.value).toISOString() })}
+                      />
+                    </div>
+
                     <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Descripción del Problema</label>
                       <input className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500" value={jobForm.description} onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })} placeholder="Ej: Cambio de frenos traseros" />
@@ -431,11 +477,23 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Horas Estimadas</label>
-                        <input type="number" className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none" value={jobForm.laborHours} onChange={(e) => recalculateTotal(jobForm.items || [], Number(e.target.value), jobForm.laborPricePerHour || 0)} />
+                        <input
+                          type="number"
+                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 placeholder:text-slate-600"
+                          placeholder="0.00"
+                          value={jobForm.laborHours || ''}
+                          onChange={(e) => recalculateTotal(jobForm.items || [], e.target.value === '' ? 0 : Number(e.target.value), jobForm.laborPricePerHour || 0)}
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">€/Hora Taller</label>
-                        <input type="number" className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none" value={jobForm.laborPricePerHour} onChange={(e) => recalculateTotal(jobForm.items || [], jobForm.laborHours || 0, Number(e.target.value))} />
+                        <input
+                          type="number"
+                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 placeholder:text-slate-600"
+                          placeholder="40"
+                          value={jobForm.laborPricePerHour || ''}
+                          onChange={(e) => recalculateTotal(jobForm.items || [], jobForm.laborHours || 0, e.target.value === '' ? 0 : Number(e.target.value))}
+                        />
                       </div>
                     </div>
                   </div>
@@ -458,8 +516,8 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                     </div>
                     <div className="flex gap-2 items-start bg-slate-900/50 p-2 rounded-xl border border-dashed border-slate-700">
                       <input className="flex-1 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 placeholder:text-slate-600" placeholder="Descripción pieza..." value={newItem.description} onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
-                      <input type="number" className="w-16 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-center placeholder:text-slate-600" placeholder="Cant." value={newItem.quantity} onChange={e => setNewItem({ ...newItem, quantity: Number(e.target.value) })} />
-                      <input type="number" className="w-20 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-right placeholder:text-slate-600" placeholder="Precio" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: Number(e.target.value) })} />
+                      <input type="number" className="w-16 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-center placeholder:text-slate-600" placeholder="Unds." value={newItem.quantity} onChange={e => setNewItem({ ...newItem, quantity: e.target.value === '' ? '' : Number(e.target.value) })} />
+                      <input type="number" className="w-20 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-right placeholder:text-slate-600" placeholder="Precio €" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })} />
                       <button onClick={handleAddItem} className="mt-1 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg shadow-lg shadow-blue-900/20 active:scale-95 transition-all"><Plus className="w-4 h-4" /></button>
                     </div>
                   </div>
@@ -480,7 +538,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify }) => {
                     </div>
                     <div className="flex gap-2 items-start bg-slate-900/50 p-2 rounded-xl border border-dashed border-red-900/20">
                       <input className="flex-1 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-red-500 placeholder:text-slate-600" placeholder="Gasto interno (ej: envío, proveedor...)" value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} />
-                      <input type="number" className="w-24 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-red-500 text-right placeholder:text-slate-600" placeholder="Coste €" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: Number(e.target.value) })} />
+                      <input type="number" className="w-24 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-red-500 text-right placeholder:text-slate-600" placeholder="Coste €" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value === '' ? '' : Number(e.target.value) })} />
                       <button onClick={handleAddJobExpense} className="mt-1 bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg active:scale-95 transition-all"><Plus className="w-4 h-4" /></button>
                     </div>
                   </div>

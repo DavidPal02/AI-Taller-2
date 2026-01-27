@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [notification, setNotification] = useState<{ msg: string, type: 'info' | 'warning' | 'success' | 'welcome' } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [targetJobId, setTargetJobId] = useState<string | null>(null);
 
   useEffect(() => {
     const initApp = async () => {
@@ -121,25 +122,42 @@ const App: React.FC = () => {
   };
 
   const scanVehicleAlerts = async () => {
-    const vehicles = await dbService.getVehicles();
-    let alertsCount = 0;
-    let worstAlert: string | null = null;
+    const [vehicles, settings] = await Promise.all([
+      dbService.getVehicles(),
+      dbService.getSettings()
+    ]);
+
+    const thresholds = settings.itvNotificationThresholds || [1, 3, 7, 14];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     vehicles.forEach(v => {
       const itv = getItvStatus(v);
-      if (itv.status === 'expired' || itv.status === 'warning') {
-        alertsCount++;
-        if (!worstAlert) worstAlert = `El coche con matrícula ${v.plate} tiene la ITV ${itv.status === 'expired' ? 'CADUCADA' : 'próxima a caducar'}.`;
+      if (!itv.date) return;
+
+      const expiryDate = new Date(itv.date);
+      expiryDate.setHours(0, 0, 0, 0);
+
+      const diffTime = expiryDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // 1. Critical Alert (Expired)
+      if (diffDays < 0) {
+        showNotification(`¡URGENTE! La ITV del vehículo ${v.plate} esta CADUCADA.`, 'warning');
+        sendPushNotification("¡ITV CADUCADA!", `El coche ${v.plate} (${v.make}) tiene la ITV vencida.`);
+        return;
+      }
+
+      // 2. Scheduled Preventive Alerts
+      if (thresholds.includes(diffDays)) {
+        const timeLabel = diffDays >= 7
+          ? `${diffDays / 7} ${diffDays === 7 ? 'semana' : 'semanas'}`
+          : `${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+
+        showNotification(`Recordatorio: La ITV del vehículo ${v.plate} caduca en ${timeLabel}.`, 'info');
+        sendPushNotification("Aviso Preventivo de ITV", `La ITV del coche ${v.plate} vencerá en ${timeLabel}.`);
       }
     });
-
-    if (alertsCount > 0) {
-      showNotification(`Tienes ${alertsCount} alertas de ITV que requieren tu atención inmediata.`, 'warning');
-      // Enviamos notificación Push de sistema si hay alertas críticas
-      if (worstAlert) {
-        sendPushNotification("¡Alerta de Vehículos!", worstAlert);
-      }
-    }
   };
 
   const handleLogin = (user: User) => {
@@ -164,9 +182,9 @@ const App: React.FC = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard />;
       case 'clients': return <Clients />;
-      case 'jobs': return <Jobs onNotify={(m) => showNotification(m, 'success')} />;
+      case 'jobs': return <Jobs onNotify={(m) => showNotification(m, 'success')} pendingJobId={targetJobId} onClearPendingJob={() => setTargetJobId(null)} />;
       case 'expenses': return <Expenses />;
-      case 'vehicles': return <Vehicles onNotify={(m) => showNotification(m, 'success')} />;
+      case 'vehicles': return <Vehicles onNotify={(m) => showNotification(m, 'success')} onNavigateToJob={(id) => { setTargetJobId(id); setCurrentView('jobs'); }} />;
       case 'mechanics': return <Mechanics />;
       case 'settings': return <Settings onNotify={(m, t) => showNotification(m, t)} onTestPush={() => sendPushNotification("Prueba de Notificación", "Esto es una notificación Push de prueba desde tu SaaS de Taller.")} />;
       default: return <Dashboard />;

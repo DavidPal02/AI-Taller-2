@@ -99,4 +99,5 @@ export interface WorkshopSettings {
   phone: string;
   email: string;
   website: string;
+  itvNotificationThresholds?: number[];
 }

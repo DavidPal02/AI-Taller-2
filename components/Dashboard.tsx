@@ -286,8 +286,9 @@ export const Dashboard: React.FC = () => {
                                   </div>
                                 ))
                               ) : (
-                                <div className="p-4 text-xs text-slate-500 italic hover:bg-slate-800 cursor-pointer" onClick={() => setShowVehicleSuggestions(false)}>
-                                  No encontrado. Se registrará nuevo vehículo.
+                                <div className="p-4 text-xs text-blue-400 font-bold italic hover:bg-slate-800 cursor-pointer flex justify-between items-center" onClick={() => setShowVehicleSuggestions(false)}>
+                                  <span>Matrícula no registrada. Crear nuevo vehículo...</span>
+                                  <ChevronRight className="w-4 h-4" />
                                 </div>
                               )}
                             </div>
@@ -318,9 +319,24 @@ export const Dashboard: React.FC = () => {
               <div className="p-10 border-t border-slate-800 bg-slate-900 flex justify-between">
                 <button disabled={step === 1} onClick={() => setStep(s => s - 1)} className="px-8 py-4 rounded-3xl text-slate-500 font-black uppercase tracking-widest text-xs hover:bg-slate-800 disabled:opacity-0">Anterior</button>
                 {step < 3 ? (
-                  <button onClick={() => setStep(s => s + 1)} disabled={(step === 1 && !wizardData.clientName) || (step === 2 && !wizardData.plate)} className="px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95">Siguiente</button>
+                  <button
+                    onClick={() => setStep(s => s + 1)}
+                    disabled={
+                      (step === 1 && !wizardData.clientName) ||
+                      (step === 2 && (!wizardData.plate || (!wizardData.vehicleId && (!wizardData.make || !wizardData.model))))
+                    }
+                    className="px-12 py-5 bg-blue-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+                  >
+                    Siguiente
+                  </button>
                 ) : (
-                  <button onClick={handleWizardSubmit} disabled={!wizardData.jobDescription} className="px-12 py-5 bg-emerald-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95">Finalizar</button>
+                  <button
+                    onClick={handleWizardSubmit}
+                    disabled={!wizardData.jobDescription}
+                    className="px-12 py-5 bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+                  >
+                    Finalizar
+                  </button>
                 )}
               </div>
             </motion.div>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { dbService, authService } from '../services/dbService';
 import { WorkshopSettings } from '../types';
-import { Save, Store, Download, Upload, Database, ShieldCheck, QrCode, Loader2, Check, Bell, AlertTriangle } from 'lucide-react';
+import { Save, Store, Download, Upload, Database, ShieldCheck, QrCode, Loader2, Check, Bell, AlertTriangle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SettingsProps {
@@ -146,6 +146,59 @@ export const Settings: React.FC<SettingsProps> = ({ onTestPush, onNotify }) => {
               <div className="col-span-1">
                 <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Email</label>
                 <input type="email" className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white outline-none focus:ring-1 focus:ring-blue-500" value={settings.email} onChange={(e) => setSettings({ ...settings, email: e.target.value })} placeholder="contacto@taller.com" />
+              </div>
+            </div>
+          </div>
+
+          {/* Gestión de Alertas ITV */}
+          <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl shadow-xl">
+            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-400" /> Alertas Preventivas de ITV
+            </h3>
+            <p className="text-slate-400 text-sm mb-6">Configura con cuánta antelación quieres recibir avisos de ITV para los vehículos de tus clientes.</p>
+
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                {(settings.itvNotificationThresholds || [1, 3, 7, 14, 30]).sort((a, b) => b - a).map((days) => (
+                  <div key={days} className="bg-slate-900 border border-slate-700 pl-4 pr-2 py-2 rounded-xl flex items-center gap-3">
+                    <span className="text-sm font-bold text-white">
+                      {days >= 7 ? `${days / 7} ${days === 7 ? 'semana' : 'semanas'}` : `${days} ${days === 1 ? 'día' : 'días'}`} antes
+                    </span>
+                    <button
+                      onClick={() => setSettings({
+                        ...settings,
+                        itvNotificationThresholds: settings.itvNotificationThresholds?.filter(d => d !== days)
+                      })}
+                      className="p-1.5 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <select
+                  className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  onChange={(e) => {
+                    const days = parseInt(e.target.value);
+                    if (days && !settings.itvNotificationThresholds?.includes(days)) {
+                      setSettings({
+                        ...settings,
+                        itvNotificationThresholds: [...(settings.itvNotificationThresholds || []), days]
+                      });
+                    }
+                    e.target.value = "";
+                  }}
+                >
+                  <option value="">Añadir aviso...</option>
+                  <option value="1">1 día antes</option>
+                  <option value="3">3 días antes</option>
+                  <option value="7">1 semana antes</option>
+                  <option value="14">2 semanas antes</option>
+                  <option value="21">3 semanas antes</option>
+                  <option value="30">1 mes antes</option>
+                </select>
               </div>
             </div>
           </div>

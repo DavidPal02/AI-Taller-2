@@ -79,16 +79,48 @@ export const dbService = {
   getVehicles: async (): Promise<Vehicle[]> => {
     const { data, error } = await supabase.from('vehicles').select('*');
     if (error) throw error;
-    return data.map(v => ({ id: v.id, clientId: v.client_id, make: v.make, model: v.model, plate: v.plate, year: v.year, currentMileage: v.current_mileage, lastItvDate: v.last_itv_date, isArchived: v.is_archived }));
+    return data.map(v => ({
+      id: v.id,
+      clientId: v.client_id,
+      make: v.make,
+      model: v.model,
+      plate: v.plate,
+      vin: v.vin,
+      year: v.year,
+      currentMileage: v.current_mileage,
+      lastItvDate: v.last_itv_date,
+      isArchived: v.is_archived
+    }));
   },
   addVehicle: async (v: Vehicle) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    const { error } = await supabase.from('vehicles').insert([{ id: v.id, user_id: userId, client_id: v.clientId, make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate, is_archived: v.isArchived || false }]);
+    const { error } = await supabase.from('vehicles').insert([{
+      id: v.id,
+      user_id: userId,
+      client_id: v.clientId,
+      make: v.make,
+      model: v.model,
+      plate: v.plate,
+      vin: v.vin,
+      year: v.year,
+      current_mileage: v.currentMileage,
+      last_itv_date: v.lastItvDate,
+      is_archived: v.isArchived || false
+    }]);
     if (error) throw error;
   },
   updateVehicle: async (v: Vehicle) => {
-    const { error } = await supabase.from('vehicles').update({ make: v.make, model: v.model, plate: v.plate, year: v.year, current_mileage: v.currentMileage, last_itv_date: v.lastItvDate, is_archived: v.isArchived }).eq('id', v.id);
+    const { error } = await supabase.from('vehicles').update({
+      make: v.make,
+      model: v.model,
+      plate: v.plate,
+      vin: v.vin,
+      year: v.year,
+      current_mileage: v.currentMileage,
+      last_itv_date: v.lastItvDate,
+      is_archived: v.isArchived
+    }).eq('id', v.id);
     if (error) throw error;
   },
   deleteVehicle: async (id: string) => {
@@ -98,12 +130,46 @@ export const dbService = {
   getJobs: async (): Promise<Job[]> => {
     const { data, error } = await supabase.from('jobs').select('*');
     if (error) throw error;
-    return data.map(j => ({ id: j.id, vehicleId: j.vehicle_id, clientId: j.client_id, mechanicId: j.mechanic_id, description: j.description, status: j.status as JobStatus, items: j.items || [], laborHours: j.labor_hours, laborPricePerHour: j.labor_price_per_hour, entryDate: j.entry_date, mileage: j.mileage, total: j.total, isPaid: j.is_paid, isArchived: j.is_archived }));
+    return data.map(j => ({
+      id: j.id,
+      vehicleId: j.vehicle_id,
+      clientId: j.client_id,
+      mechanicId: j.mechanic_id,
+      description: j.description,
+      status: j.status as JobStatus,
+      items: j.items || [],
+      laborHours: j.labor_hours,
+      laborPricePerHour: j.labor_price_per_hour,
+      entryDate: j.entry_date,
+      mileage: j.mileage,
+      estimatedDelivery: j.estimated_delivery,
+      notes: j.notes,
+      total: j.total,
+      isPaid: j.is_paid,
+      isArchived: j.is_archived
+    }));
   },
   saveJob: async (j: Job) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    const payload = { user_id: userId, vehicle_id: j.vehicleId, client_id: j.clientId, mechanic_id: j.mechanicId, description: j.description, status: j.status, items: j.items, labor_hours: j.laborHours, labor_price_per_hour: j.laborPricePerHour, entry_date: j.entryDate, mileage: j.mileage, total: j.total, is_paid: j.isPaid, is_archived: j.isArchived ?? false };
+    const payload = {
+      user_id: userId,
+      vehicle_id: j.vehicleId,
+      client_id: j.clientId,
+      mechanic_id: j.mechanicId,
+      description: j.description,
+      status: j.status,
+      items: j.items,
+      labor_hours: j.laborHours,
+      labor_price_per_hour: j.laborPricePerHour,
+      entry_date: j.entryDate,
+      mileage: j.mileage,
+      estimated_delivery: j.estimatedDelivery,
+      notes: j.notes,
+      total: j.total,
+      is_paid: j.isPaid,
+      is_archived: j.isArchived ?? false
+    };
     const { error } = await supabase.from('jobs').upsert([{ id: j.id, ...payload }]);
     if (error) throw error;
   },
@@ -142,23 +208,39 @@ export const dbService = {
   getExpenseCategories: async (): Promise<ExpenseCategory[]> => {
     const { data, error } = await supabase.from('expense_categories').select('*');
     if (error || !data || data.length === 0) return [{ id: crypto.randomUUID(), name: 'Piezas' }, { id: crypto.randomUUID(), name: 'Alquiler' }];
-    return data;
+    return data.map(c => ({ id: c.id, name: c.name, defaultAmount: c.default_amount }));
   },
   addExpenseCategory: async (c: ExpenseCategory) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    await supabase.from('expense_categories').insert([{ ...c, user_id: userId }]);
+    const { error } = await supabase.from('expense_categories').insert([{ id: c.id, user_id: userId, name: c.name, default_amount: c.defaultAmount }]);
+    if (error) throw error;
   },
   deleteExpenseCategory: async (id: string) => { await supabase.from('expense_categories').delete().eq('id', id); },
   getSettings: async (): Promise<WorkshopSettings> => {
     const { data, error } = await supabase.from('workshop_settings').select('*').single();
-    if (error || !data) return { name: "Taller Peter", address: "", phone: "", email: "", website: "" };
-    return data;
+    if (error || !data) return { name: "Taller Peter", address: "", phone: "", email: "", website: "", itvNotificationThresholds: [1, 3, 7, 14] };
+    return {
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+      website: data.website,
+      itvNotificationThresholds: data.itv_notification_thresholds || [1, 3, 7, 14]
+    };
   },
   saveSettings: async (s: WorkshopSettings) => {
     const userId = await getUserId();
     if (!userId) throw new Error("Usuario no autenticado");
-    const { error } = await supabase.from('workshop_settings').upsert([{ user_id: userId, ...s }]);
+    const { error } = await supabase.from('workshop_settings').upsert([{
+      user_id: userId,
+      name: s.name,
+      address: s.address,
+      phone: s.phone,
+      email: s.email,
+      website: s.website,
+      itv_notification_thresholds: s.itvNotificationThresholds
+    }]);
     if (error) throw error;
   },
   getDashboardStats: async (): Promise<KPIData> => {

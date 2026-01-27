@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { dbService } from '../services/dbService';
 import { Vehicle, Client, Job } from '../types';
-import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp, Archive, RefreshCw } from 'lucide-react';
+import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp, Archive, RefreshCw, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const getItvStatus = (vehicle: Vehicle) => {
@@ -33,9 +33,10 @@ export const getItvStatus = (vehicle: Vehicle) => {
 
 interface VehiclesProps {
   onNotify?: (msg: string) => void;
+  onNavigateToJob?: (id: string) => void;
 }
 
-export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
+export const Vehicles: React.FC<VehiclesProps> = ({ onNotify, onNavigateToJob }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -48,6 +49,9 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
 
   // Custom Delete Modal State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean, vehicleId: string | null }>({ isOpen: false, vehicleId: null });
+
+  // Expanded History Item State
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -75,7 +79,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
       };
       await dbService.updateVehicle(v);
       setVehicles(vehicles.map(item => item.id === editingVehicleId ? v : item));
-      if (onNotify) onNotify('Vehículo actualizado correctamente');
+      // onNotify removed
     } else {
       const v: Vehicle = {
         id: crypto.randomUUID(),
@@ -90,7 +94,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
       };
       await dbService.addVehicle(v);
       setVehicles([...vehicles, v]);
-      if (onNotify) onNotify('Vehículo añadido a la flota');
+      // onNotify removed
     }
 
     setIsModalOpen(false);
@@ -126,7 +130,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
     const updatedVehicle = { ...vehicle, isArchived: !vehicle.isArchived };
     await dbService.updateVehicle(updatedVehicle);
     setVehicles(vehicles.map(v => v.id === vehicle.id ? updatedVehicle : v));
-    if (onNotify) onNotify(updatedVehicle.isArchived ? 'Vehículo archivado' : 'Vehículo desarchivado');
+    // onNotify removed
     setIsModalOpen(false);
   };
 
@@ -298,13 +302,22 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
                               diffMonths = (d1.getFullYear() - d2.getFullYear()) * 12 + (d1.getMonth() - d2.getMonth());
                             }
 
+                            const isExpanded = expandedHistoryId === job.id;
+
                             return (
-                              <div key={job.id} className="bg-slate-950/30 rounded-lg p-3 border border-slate-800/50">
+                              <div
+                                key={job.id}
+                                onClick={() => setExpandedHistoryId(isExpanded ? null : job.id)}
+                                className={`rounded-lg p-3 border transition-colors cursor-pointer ${isExpanded ? 'bg-slate-800 border-blue-500/50' : 'bg-slate-950/30 border-slate-800/50 hover:bg-slate-900'}`}
+                              >
                                 <div className="flex justify-between items-start mb-1">
-                                  <span className="text-xs font-bold text-white uppercase truncate max-w-[150px]">{job.description}</span>
-                                  <span className="text-[10px] text-slate-500 font-mono">{new Date(job.entryDate).toLocaleDateString()}</span>
+                                  {/* Full description if expanded, wrapped */}
+                                  <span className={`text-xs font-bold text-white uppercase ${!isExpanded ? 'truncate max-w-[150px]' : 'whitespace-pre-wrap leading-relaxed'}`}>
+                                    {job.description}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-mono flex-shrink-0 ml-2">{new Date(job.entryDate).toLocaleDateString()}</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 mb-2">
                                   <span className="bg-slate-800 px-1.5 rounded flex items-center gap-1"><Gauge className="w-3 h-3" /> {job.mileage?.toLocaleString() || 0} km</span>
                                   {prevJob && (
                                     <span className={`px-1.5 rounded flex items-center gap-1 ${diffKm >= 0 ? 'text-emerald-400/80 bg-emerald-900/10' : 'text-red-400/80 bg-red-900/10'}`}>
@@ -317,6 +330,25 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify }) => {
                                     </span>
                                   )}
                                 </div>
+
+                                {/* Expanded Content */}
+                                {isExpanded && (
+                                  <div className="pt-2 border-t border-slate-700/50 flex justify-between items-center mt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="text-[10px] font-mono text-slate-400">
+                                      Total: <span className="text-white font-bold">{job.total.toLocaleString()}€</span>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onNavigateToJob) onNavigateToJob(job.id);
+                                        setIsModalOpen(false); // Close vehicle modal
+                                      }}
+                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors"
+                                    >
+                                      Abrir Trabajo <ChevronRight className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             );
                           })
