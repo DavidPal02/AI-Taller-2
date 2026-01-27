@@ -472,7 +472,24 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
 
                     <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Descripción del Problema</label>
-                      <input className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500" value={jobForm.description} onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })} placeholder="Ej: Cambio de frenos traseros" />
+                      <textarea
+                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 min-h-[100px] resize-none"
+                        value={jobForm.description}
+                        onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
+                        placeholder="Ej: Cambio de frenos traseros y revisión de niveles..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
+                        <FileText className="w-3 h-3 text-amber-500" /> Notas Internas / Hallazgos
+                      </label>
+                      <textarea
+                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-slate-300 font-medium outline-none focus:border-amber-500 min-h-[120px] resize-none text-sm"
+                        value={jobForm.notes || ''}
+                        onChange={(e) => setJobForm({ ...jobForm, notes: e.target.value })}
+                        placeholder="Apunta aquí detalles técnicos, piezas a pedir o fallos encontrados durante la reparación..."
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
