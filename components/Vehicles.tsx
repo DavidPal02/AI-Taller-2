@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { dbService } from '../services/dbService';
 import { Vehicle, Client, Job } from '../types';
-import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp, Archive, RefreshCw, ChevronRight } from 'lucide-react';
+import { Plus, Search, Calendar, AlertTriangle, Gauge, X, History, Clock, TrendingUp, Archive, RefreshCw, ChevronRight, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const getItvStatus = (vehicle: Vehicle) => {
@@ -151,76 +151,80 @@ export const Vehicles: React.FC<VehiclesProps> = ({ onNotify, onNavigateToJob })
   };
 
   return (
-    <div className="p-8 h-full overflow-hidden flex flex-col">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-white">Flota de Vehículos</h2>
-          <p className="text-slate-400 mt-1">Seguimiento de mantenimientos e ITV.</p>
+    <div className="h-full flex flex-col bg-slate-950 relative overflow-hidden">
+      <div className="pt-safe px-6 pb-4 md:p-8 shrink-0 bg-slate-950/90 backdrop-blur-sm z-10">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">Flota de Vehículos</h2>
+            <p className="text-slate-400 mt-1 text-sm md:text-base">Seguimiento de mantenimientos e ITV.</p>
+          </div>
+          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 md:px-6 md:py-2 rounded-xl flex items-center gap-2 shadow-lg transition-transform active:scale-95 font-bold text-sm md:text-base">
+            <Plus className="w-5 h-5" /> <span className="hidden md:inline">Nuevo Coche</span><span className="md:hidden">Nuevo</span>
+          </button>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl flex items-center gap-2 shadow-lg transition-transform active:scale-95 font-bold">
-          <Plus className="w-5 h-5" /> Nuevo Coche
-        </button>
+
+        <div className="flex gap-4 mb-4 border-b border-slate-700">
+          <button
+            onClick={() => setShowArchived(false)}
+            className={`pb-3 px-2 text-sm font-bold transition-colors relative ${!showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            Activos
+            {!showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
+          </button>
+          <button
+            onClick={() => setShowArchived(true)}
+            className={`pb-3 px-2 text-sm font-bold transition-colors relative ${showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
+          >
+            Archivados
+            {showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
+          </button>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+          <input
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-all"
+            placeholder="Buscar matrícula, marca o modelo..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      <div className="flex gap-4 mb-6 border-b border-slate-700">
-        <button
-          onClick={() => setShowArchived(false)}
-          className={`pb-3 px-2 text-sm font-bold transition-colors relative ${!showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Activos
-          {!showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
-        </button>
-        <button
-          onClick={() => setShowArchived(true)}
-          className={`pb-3 px-2 text-sm font-bold transition-colors relative ${showArchived ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Archivados
-          {showArchived && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />}
-        </button>
-      </div>
-
-      <div className="mb-6 relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input
-          className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-          placeholder="Buscar matrícula, marca o modelo..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-y-auto custom-scrollbar pb-8">
-        {vehicles.filter(v => (v.isArchived === showArchived || (!v.isArchived && !showArchived)) && (v.plate.includes(searchTerm.toUpperCase()) || v.make.toLowerCase().includes(searchTerm.toLowerCase()))).map(v => {
-          const itv = getItvStatus(v);
-          return (
-            <motion.div
-              key={v.id}
-              className="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl group cursor-pointer hover:border-blue-500/50 transition-all relative overflow-hidden active:scale-[0.98]"
-              onClick={() => openEditModal(v)}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="bg-slate-900 border border-slate-700 px-3 py-1 rounded-md font-mono text-blue-400 text-sm font-bold shadow-inner">{v.plate}</div>
-                <div className="flex gap-2">
-                  <div className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${itv.bg} ${itv.color} flex items-center gap-1`}>
-                    <Calendar className="w-3 h-3" /> {itv.label}
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                    <button onClick={(e) => RequestDelete(v.id, e)} className="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-8 pb-32">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {vehicles.filter(v => (v.isArchived === showArchived || (!v.isArchived && !showArchived)) && (v.plate.includes(searchTerm.toUpperCase()) || v.make.toLowerCase().includes(searchTerm.toLowerCase()))).map(v => {
+            const itv = getItvStatus(v);
+            return (
+              <motion.div
+                key={v.id}
+                className="bg-slate-800/50 border border-slate-700 p-5 md:p-6 rounded-2xl group cursor-pointer hover:border-blue-500/50 transition-all relative overflow-hidden active:scale-[0.98]"
+                onClick={() => openEditModal(v)}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="bg-slate-900 border border-slate-700 px-3 py-1 rounded-md font-mono text-blue-400 text-sm font-bold shadow-inner">{v.plate}</div>
+                  <div className="flex gap-2">
+                    <div className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${itv.bg} ${itv.color} flex items-center gap-1`}>
+                      <Calendar className="w-3 h-3" /> {itv.label}
+                    </div>
+                    <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 transition-opacity">
+                      <button onClick={(e) => RequestDelete(v.id, e)} className="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <h3 className="text-lg font-bold text-white group-hover:text-blue-400 truncate transition-colors">{v.make} {v.model}</h3>
-              <p className="text-sm text-slate-500 font-medium">{clients.find(c => c.id === v.clientId)?.name || 'Sin dueño'}</p>
+                <h3 className="text-lg font-bold text-white group-hover:text-blue-400 truncate transition-colors">{v.make} {v.model}</h3>
+                <p className="text-sm text-slate-500 font-medium">{clients.find(c => c.id === v.clientId)?.name || 'Sin dueño'}</p>
 
-              <div className="mt-6 flex items-center justify-between text-xs text-slate-400 border-t border-slate-700 pt-3">
-                <div className="flex items-center gap-1 text-slate-300 font-medium"><Gauge className="w-3 h-3 text-slate-500" /> {v.currentMileage?.toLocaleString()} km</div>
-                {itv.date && <div className="font-mono bg-slate-800/50 px-2 py-0.5 rounded">{itv.date.toLocaleDateString()}</div>}
-              </div>
-            </motion.div>
-          );
-        })}
+                <div className="mt-6 flex items-center justify-between text-xs text-slate-400 border-t border-slate-700 pt-3">
+                  <div className="flex items-center gap-1 text-slate-300 font-medium"><Gauge className="w-3 h-3 text-slate-500" /> {v.currentMileage?.toLocaleString()} km</div>
+                  {itv.date && <div className="font-mono bg-slate-800/50 px-2 py-0.5 rounded">{itv.date.toLocaleDateString()}</div>}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
 
       <AnimatePresence>
