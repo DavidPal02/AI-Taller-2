@@ -30,6 +30,7 @@ export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<KPIData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [wizardData, setWizardData] = useState({
@@ -51,14 +52,16 @@ export const Dashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [statsData, clientsData, vehiclesData] = await Promise.all([
+      const [statsData, clientsData, vehiclesData, jobsData] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getClients(),
-        dbService.getVehicles()
+        dbService.getVehicles(),
+        dbService.getJobs()
       ]);
       setStats(statsData);
       setClients(clientsData);
       setVehicles(vehiclesData);
+      setJobs(jobsData);
     } catch (e) { console.error("Error cargando dashboard:", e); }
   };
 
@@ -119,7 +122,25 @@ export const Dashboard: React.FC = () => {
     setShowVehicleSuggestions(false);
   };
 
-  const chartData = [{ name: 'Lun', r: 400 }, { name: 'Mar', r: 300 }, { name: 'Mie', r: 600 }, { name: 'Jue', r: 450 }, { name: 'Vie', r: 800 }, { name: 'Sab', r: 550 }];
+  const getMonthlyPerformance = () => {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const data = [];
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dailyRevenue = jobs
+        .filter(j => {
+          const d = new Date(j.entryDate);
+          return d.getDate() === i && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        })
+        .reduce((acc, curr) => acc + curr.total, 0);
+
+      data.push({ name: i.toString(), r: dailyRevenue });
+    }
+    return data;
+  };
+
+  const chartData = getMonthlyPerformance();
 
   if (!stats) return <div className="h-full flex items-center justify-center bg-slate-950"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin shadow-2xl shadow-blue-500/50"></div></div>;
 
@@ -156,7 +177,7 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
           <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl">
             <h3 className="text-xs font-black text-slate-500 mb-8 uppercase tracking-[0.2em] flex items-center gap-3">
-              <TrendingUp className="w-4 h-4 text-blue-500" /> Rendimiento Semanal
+              <TrendingUp className="w-4 h-4 text-blue-500" /> Rendimiento Mensual
             </h3>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">

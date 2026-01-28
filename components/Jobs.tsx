@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Car, X, FileText, Printer, DollarSign, Wallet, Edit3, Trash2, User, FileDown, ToggleLeft, ToggleRight, Clock, Users, Wrench, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Car, X, FileText, Printer, DollarSign, Wallet, Edit3, Trash2, User, FileDown, ToggleLeft, ToggleRight, Clock, Users, Wrench, ChevronLeft, ChevronRight, AlertTriangle, Gauge, TrendingUp } from 'lucide-react';
 import { dbService } from '../services/dbService';
 import { Job, JobStatus, Vehicle, Client, JobItem, Expense, Mechanic, WorkshopSettings } from '../types';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
@@ -458,16 +458,30 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                       </div>
                     )}
                     {/* Fecha de Entrada */}
-                    <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                        <Clock className="w-3 h-3" /> Fecha de Entrada
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
-                        value={jobForm.entryDate ? new Date(jobForm.entryDate).toISOString().slice(0, 16) : ''}
-                        onChange={(e) => setJobForm({ ...jobForm, entryDate: new Date(e.target.value).toISOString() })}
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
+                          <Clock className="w-3 h-3" /> Fecha de Entrada
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
+                          value={jobForm.entryDate ? new Date(jobForm.entryDate).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setJobForm({ ...jobForm, entryDate: new Date(e.target.value).toISOString() })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
+                          <Gauge className="w-3 h-3" /> Kilometraje
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
+                          value={jobForm.mileage || ''}
+                          onChange={(e) => setJobForm({ ...jobForm, mileage: Number(e.target.value) })}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -576,6 +590,21 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-black text-white italic">TOTAL</span>
                       <span className="text-2xl font-black text-blue-500">{jobForm.total?.toLocaleString()} €</span>
+                    </div>
+
+                    {/* Beneficio Neto (Solo Visible Internamente) */}
+                    <div className="mt-4 pt-4 border-t border-slate-800/50">
+                      <div className="flex justify-between items-center bg-emerald-900/10 p-3 rounded-xl border border-emerald-500/10">
+                        <span className="text-xs font-black text-emerald-500 uppercase flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" /> Beneficio Neto Estimado
+                        </span>
+                        <span className="text-lg font-black text-emerald-400">
+                          {((jobForm.total || 0) - jobExpenses.reduce((sum, e) => sum + e.amount, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-1 text-right">
+                        *Total - Gastos Internos
+                      </p>
                     </div>
                   </div>
                 </div>
