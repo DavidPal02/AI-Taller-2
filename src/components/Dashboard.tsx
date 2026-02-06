@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Activity, CheckCircle, Wallet, TrendingUp, Plus, User, Car, Wrench, ChevronRight, ChevronLeft, X, Euro, Gauge, Sparkles, Search } from 'lucide-react';
 import { dbService } from '../services/dbService';
-import { KPIData, JobStatus, Client, Vehicle, Job, Expense } from '../types';
+import { KPIData, JobStatus, Client, Vehicle, Job, Expense, Mechanic } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const StatCard = ({ title, value, icon: Icon, color, delay }: any) => (
@@ -27,11 +27,14 @@ const StatCard = ({ title, value, icon: Icon, color, delay }: any) => (
 );
 
 export const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<KPIData | null>(null);
+  const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [wizardData, setWizardData] = useState({
@@ -65,21 +68,68 @@ export const Dashboard: React.FC = () => {
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [statsData, clientsData, vehiclesData, jobsData, expensesData] = await Promise.all([
-        dbService.getDashboardStats(),
+      const [clientsData, vehiclesData, jobsData, expensesData, mechanicsData] = await Promise.all([
         dbService.getClients(),
         dbService.getVehicles(),
         dbService.getJobs(),
-        dbService.getExpenses()
+        dbService.getExpenses(),
+        dbService.getMechanics()
       ]);
-      setStats(statsData);
       setClients(clientsData);
       setVehicles(vehiclesData);
       setJobs(jobsData);
       setExpenses(expensesData);
-    } catch (e) { console.error("Error cargando dashboard:", e); }
+      setMechanics(mechanicsData);
+    } catch (e) {
+      console.error("Error cargando dashboard:", e);
+      setError("No se pudieron cargar los datos. Verifica tu conexión.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const stats = React.useMemo<KPIData | null>(() => {
+    if (loading || error) return null;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Resetting these monthly as per requirement
+    const deliveredThisMonth = jobs.filter(j => {
+      const d = new Date(j.entryDate);
+      return j.status === JobStatus.DELIVERED && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const expensesThisMonth = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const revenue = deliveredThisMonth.reduce((a, b) => a + (Number(b.total) || 0), 0);
+    const totalExp = expensesThisMonth.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+    // "En Taller" (Active Jobs) does NOT reset monthly
+    const active = jobs.filter(j => j.status !== JobStatus.DELIVERED && j.status !== JobStatus.COMPLETED).length;
+
+    const mechanicLoad = mechanics.map(m => ({
+      name: m.name,
+      jobs: jobs.filter(j => j.mechanicId === m.id && j.status !== JobStatus.DELIVERED && j.status !== JobStatus.COMPLETED).length
+    }));
+
+    return {
+      totalRevenue: revenue,
+      totalExpenses: totalExp,
+      netProfit: revenue - totalExp,
+      activeJobs: active,
+      completedJobs: jobs.length - active,
+      totalClients: clients.length,
+      mechanicLoad
+    };
+  }, [jobs, expenses, clients, mechanics, loading, error]);
 
   const handleWizardSubmit = async () => {
     try {
@@ -96,9 +146,18 @@ export const Dashboard: React.FC = () => {
         vehicleId = crypto.randomUUID();
         await dbService.addVehicle({ id: vehicleId, clientId, make: wizardData.make, model: wizardData.model, plate: wizardData.plate.toUpperCase(), year: wizardData.year, currentMileage });
       } else {
-        // Update mileage if vehicle exists
+        // Update vehicle with latest data from wizard
         const existingV = vehicles.find(v => v.id === vehicleId);
-        if (existingV) await dbService.updateVehicle({ ...existingV, currentMileage });
+        if (existingV) {
+          await dbService.updateVehicle({
+            ...existingV,
+            make: wizardData.make,
+            model: wizardData.model,
+            plate: wizardData.plate.toUpperCase(),
+            year: wizardData.year,
+            currentMileage
+          });
+        }
       }
 
       await dbService.saveJob({ id: crypto.randomUUID(), vehicleId, clientId, description: wizardData.jobDescription, status: JobStatus.PENDING, items: [], laborHours: 0, laborPricePerHour: 40, entryDate: new Date().toISOString(), mileage: currentMileage, total: 0, isPaid: false });
@@ -127,7 +186,7 @@ export const Dashboard: React.FC = () => {
       model: vehicle.model,
       plate: vehicle.plate,
       year: vehicle.year,
-      mileage: vehicle.currentMileage.toString(),
+      mileage: (vehicle.currentMileage ?? 0).toString(),
       clientId: owner ? owner.id : prev.clientId,
       clientName: owner ? owner.name : prev.clientName,
       clientPhone: owner ? owner.phone : prev.clientPhone,
@@ -165,9 +224,16 @@ export const Dashboard: React.FC = () => {
     return data;
   };
 
-  const chartData = getAnnualPerformance();
+  const chartData = React.useMemo(() => getAnnualPerformance(), [jobs, expenses]);
 
-  if (!stats) return <div className="h-full flex items-center justify-center bg-slate-950"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin shadow-2xl shadow-blue-500/50"></div></div>;
+  if (loading) return <div className="h-full flex items-center justify-center bg-slate-950"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin shadow-2xl shadow-blue-500/50"></div></div>;
+
+  if (error || !stats) return (
+    <div className="h-full flex flex-col items-center justify-center bg-slate-950 text-slate-400 gap-4">
+      <p>{error || "Error desconocido"}</p>
+      <button onClick={loadData} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 transition-colors">Reintentar</button>
+    </div>
+  );
 
   return (
     <div className="view-wrapper bg-slate-950">

@@ -63,4 +63,4 @@ Este proyecto está construido con un stack tecnológico moderno para garantizar
    La aplicación estará disponible en `http://localhost:3000`.
 
 ---
-*Desarrollado para Taller Peter - v1.4.2*
+*Desarrollado para Taller Peter - v1.4.5*

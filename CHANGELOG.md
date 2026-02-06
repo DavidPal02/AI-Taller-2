@@ -2,6 +2,26 @@
 
 Este documento registra todos los cambios, mejoras y correcciones realizadas en la aplicación **Taller Peter Manager**.
 
+## [v1.4.5] - 2026-02-06
+### Automatización y Reportes
+- **Reinicio Mensual de KPIs**: Los indicadores financieros del Dashboard (Ingresos, Gastos, Beneficio) ahora se filtran automáticamente por el mes actual, realizando un reset visual el día 1 de cada mes.
+- **Analítica de Captación**: Los informes PDF ahora incluyen una sección de analítica avanzada que muestra el número de Clientes Nuevos del mes y el % de Crecimiento en comparación con el mes anterior.
+- **Reportes Enriquecidos**:
+    - Agrupación del vehículo en formato `[Matrícula] - [Marca] [Modelo]` en las tablas de trabajos.
+    - El resumen de gastos mensuales ahora es más detallado y legible en el PDF generado.
+
+## [v1.4.4] - 2026-02-06
+### Gestión Económica (Centralización)
+- **Módulo "Gest. Econ"**: Se ha creado un nuevo módulo centralizado que agrupa los "Informes de Rendimiento" y los "Gastos" bajo una misma sección, mejorando la navegación administrativa.
+- **Tablero de Auditoría**: Generación de informes PDF estilizados y profesionales, diseñados para auditorías rápidas y visualización de beneficios reales.
+- **Navegación Intuitiva**: Reemplazado el acceso directo de "Gastos" en el Sidebar por el nuevo icono de Euro (€) que da acceso al ecosistema financiero.
+
+## [v1.4.3] - 2026-02-06
+### Optimización de Rendimiento
+- **Estructura de Datos O(1)**: Implementado uso de mapas de búsqueda instantánea para vincular vehículos y clientes en las vistas de "Trabajos" y "Clientes", eliminando retrasos en el renderizado.
+- **Memoización de Componentes**: Optimizado el Dashboard, la Recepción Rápida y el Tablero Kanban mediante `useMemo` para evitar cálculos innecesarios en cada interacción.
+- **Fluidez Visual**: Eliminados cuellos de botella en el procesamiento de listas que causaban "lag" al hacer scroll o interactuar con tarjetas de trabajos.
+
 ## [v1.4.2] - 2026-01-28
 ### Corregido
 - **Previsualización de Presupuesto en Móvil**: Se ha solucionado el problema donde la barra de navegación inferior del móvil ocultaba el botón de "Imprimir / PDF". Ahora el modal tiene un margen inferior y una altura ajustada para garantizar la accesibilidad de los botones de acción.

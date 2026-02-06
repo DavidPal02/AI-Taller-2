@@ -4,7 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { Clients } from './components/Clients';
 import { Jobs } from './components/Jobs';
-import { Expenses } from './components/Expenses';
+import { Finance } from './components/Finance';
 import { Vehicles, getItvStatus } from './components/Vehicles';
 import { Mechanics } from './components/Mechanics';
 import { Settings } from './components/Settings';
@@ -183,7 +183,7 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard />;
       case 'clients': return <Clients />;
       case 'jobs': return <Jobs onNotify={(m) => showNotification(m, 'success')} pendingJobId={targetJobId} onClearPendingJob={() => setTargetJobId(null)} />;
-      case 'expenses': return <Expenses />;
+      case 'finance': return <Finance />;
       case 'vehicles': return <Vehicles onNotify={(m) => showNotification(m, 'success')} onNavigateToJob={(id) => { setTargetJobId(id); setCurrentView('jobs'); }} />;
       case 'mechanics': return <Mechanics />;
       case 'settings': return <Settings onNotify={(m, t) => showNotification(m, t)} onTestPush={() => sendPushNotification("Prueba de Notificación", "Esto es una notificación Push de prueba desde tu SaaS de Taller.")} />;

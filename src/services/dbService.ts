@@ -77,7 +77,7 @@ export const dbService = {
     if (error) throw error;
   },
   getVehicles: async (): Promise<Vehicle[]> => {
-    const { data, error } = await supabase.from('vehicles').select('*');
+    const { data, error } = await supabase.from('vehicles').select('*').order('plate', { ascending: true });
     if (error) throw error;
     return data.map(v => ({
       id: v.id,
@@ -128,7 +128,7 @@ export const dbService = {
     if (error) throw error;
   },
   getJobs: async (): Promise<Job[]> => {
-    const { data, error } = await supabase.from('jobs').select('*');
+    const { data, error } = await supabase.from('jobs').select('*').order('entry_date', { ascending: false });
     if (error) throw error;
     return data.map(j => ({
       id: j.id,
@@ -178,7 +178,7 @@ export const dbService = {
     if (error) throw error;
   },
   getExpenses: async (): Promise<Expense[]> => {
-    const { data, error } = await supabase.from('expenses').select('*');
+    const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
     if (error) throw error;
     return data.map(e => ({ id: e.id, jobId: e.job_id, description: e.description, amount: e.amount, date: e.date, category: e.category }));
   },
@@ -190,7 +190,7 @@ export const dbService = {
   },
   deleteExpense: async (id: string) => { await supabase.from('expenses').delete().eq('id', id); },
   getMechanics: async (): Promise<Mechanic[]> => {
-    const { data, error } = await supabase.from('mechanics').select('*');
+    const { data, error } = await supabase.from('mechanics').select('*').order('name');
     if (error) throw error;
     return data.map(m => ({ id: m.id, name: m.name, specialty: m.specialty }));
   },
@@ -251,7 +251,7 @@ export const dbService = {
     const active = jobs.filter(j => j.status !== JobStatus.DELIVERED && j.status !== JobStatus.COMPLETED).length;
     return {
       totalRevenue: revenue, totalExpenses: totalExp, netProfit: revenue - totalExp, activeJobs: active, completedJobs: jobs.length - active, totalClients: clients.length,
-      mechanicLoad: mechanics.map(m => ({ name: m.name, jobs: jobs.filter(j => j.mechanicId === m.id && j.status !== JobStatus.DELIVERED).length }))
+      mechanicLoad: mechanics.map(m => ({ name: m.name, jobs: jobs.filter(j => j.mechanicId === m.id && j.status !== JobStatus.DELIVERED && j.status !== JobStatus.COMPLETED).length }))
     };
   },
   exportBackup: async () => { return { clients: await dbService.getClients(), vehicles: await dbService.getVehicles(), jobs: await dbService.getJobs(), expenses: await dbService.getExpenses(), settings: await dbService.getSettings() }; },

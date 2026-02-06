@@ -6,6 +6,7 @@ import { dbService } from '../services/dbService';
 import { Job, JobStatus, Vehicle, Client, JobItem, Expense, Mechanic, WorkshopSettings } from '../types';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import saveAs from 'file-saver';
+import { JobDetailModal } from './JobDetailModal';
 
 interface JobBoardProps {
   onNotify: (msg: string) => void;
@@ -46,11 +47,6 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
     invoiceNumber: string;
     date: string;
   } | null>(null);
-
-  const [jobForm, setJobForm] = useState<Partial<Job>>({});
-  const [newItem, setNewItem] = useState<{ description: string, quantity: number | '', unitPrice: number | '' }>({ description: '', quantity: 1, unitPrice: '' });
-  const [jobExpenses, setJobExpenses] = useState<Expense[]>([]);
-  const [newExpense, setNewExpense] = useState<{ description: string, amount: number | '' }>({ description: '', amount: '' });
 
   // Custom Delete Modal State
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -115,16 +111,10 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
     setSettings(sets);
   };
 
-  const handleVehicleChange = (vehicleId: string) => {
-    const v = vehicles.find(v => v.id === vehicleId);
-    setJobForm(prev => ({ ...prev, vehicleId, clientId: v?.clientId || '' }));
-  };
-
   const updateJobStatus = async (job: Job, newStatus: JobStatus) => {
     const updated = { ...job, status: newStatus };
     await dbService.saveJob(updated);
     setJobs(jobs.map(j => j.id === job.id ? updated : j));
-    // onNotify removed as requested
   };
 
   const toggleArchiveJob = async (job: Job) => {
@@ -132,9 +122,8 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
     const updated = { ...job, isArchived: newArchivedStatus };
     await dbService.saveJob(updated);
     setJobs(jobs.map(j => j.id === job.id ? updated : j));
-    // onNotify removed as requested
     if (editingJob) setEditingJob(null);
-  }
+  };
 
   const handleNewJob = () => {
     const newJob: Partial<Job> = {
@@ -142,14 +131,10 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
       laborPricePerHour: 40, entryDate: new Date().toISOString(), mileage: 0, isPaid: false
     };
     setEditingJob(newJob);
-    setJobForm(newJob);
-    setJobExpenses([]);
   };
 
   const openEditModal = (job: Job) => {
     setEditingJob(job);
-    setJobForm(JSON.parse(JSON.stringify(job)));
-    setJobExpenses(expenses.filter(e => e.jobId === job.id));
   };
 
   const openInvoice = (job: Job) => {
@@ -162,51 +147,28 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
     setShowInvoice(job);
   };
 
-  const handleAddItem = () => {
-    if (!newItem.description) return;
-    const item: JobItem = {
-      id: crypto.randomUUID(),
-      description: newItem.description,
-      quantity: Number(newItem.quantity) || 1,
-      unitPrice: Number(newItem.unitPrice) || 0
-    };
-    const updatedItems = [...(jobForm.items || []), item];
-    recalculateTotal(updatedItems, jobForm.laborHours || 0, jobForm.laborPricePerHour || 0);
-    setNewItem({ description: '', quantity: 1, unitPrice: '' });
+  const handleShowBudgetPreview = (job: Partial<Job>) => {
+    // Current budget preview logic uses jobForm, but now it will use the job passed from modal
+    // We can update editingJob or just pass it to openInvoice if needed
+    // For now, let's just make it work with the existing showBudgetPreview logic
+    // but we need the client info which isn't in editingJob if it's new
+    setEditingJob(job);
+    setShowBudgetPreview(true);
   };
 
-  const removeItem = (itemId: string) => {
-    const updatedItems = (jobForm.items || []).filter(i => i.id !== itemId);
-    recalculateTotal(updatedItems, jobForm.laborHours || 0, jobForm.laborPricePerHour || 0);
-  };
+  const handleSaveJob = async (updatedJob: Job, newExpenses: Expense[]) => {
+    if (!updatedJob.description || !updatedJob.vehicleId) { onNotify("Datos incompletos"); return; }
+    const jobId = updatedJob.id || crypto.randomUUID();
+    const finalJob = { ...updatedJob, id: jobId };
+    await dbService.saveJob(finalJob);
 
-  const recalculateTotal = (items: JobItem[], laborHours: number, laborRate: number) => {
-    const itemsTotal = items.reduce((acc, curr) => acc + (curr.quantity * curr.unitPrice), 0);
-    setJobForm(prev => ({ ...prev, items, laborHours, laborPricePerHour: laborRate, total: itemsTotal + (laborHours * laborRate) }));
-  };
+    // Save new expenses
+    for (const exp of newExpenses) {
+      if (!expenses.find(e => e.id === exp.id)) {
+        await dbService.addExpense({ ...exp, jobId });
+      }
+    }
 
-  const handleAddJobExpense = () => {
-    if (!newExpense.description || (newExpense.amount === '' && newExpense.amount !== 0)) return;
-    const amount = Number(newExpense.amount) || 0;
-    const exp: Expense = {
-      description: newExpense.description,
-      amount,
-      id: crypto.randomUUID(),
-      jobId: editingJob?.id,
-      date: new Date().toISOString(),
-      category: 'Piezas'
-    } as Expense;
-    setJobExpenses([...jobExpenses, exp]);
-    setNewExpense({ description: '', amount: '' });
-  };
-
-  const saveJobChanges = async () => {
-    if (!jobForm.description || !jobForm.vehicleId) { onNotify("Datos incompletos"); return; }
-    const jobId = jobForm.id || crypto.randomUUID();
-    const updatedJob = { ...jobForm, id: jobId } as Job;
-    await dbService.saveJob(updatedJob);
-    for (const exp of jobExpenses) { if (!expenses.find(e => e.id === exp.id)) await dbService.addExpense({ ...exp, jobId }); }
-    // Notification removed as requested
     setEditingJob(null);
     loadData();
   };
@@ -237,7 +199,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
 
     const opt = {
       margin: [10, 10],
-      filename: `Presupuesto_${jobForm.id?.slice(0, 8) || 'Borrador'}.pdf`,
+      filename: `Presupuesto_${editingJob?.id?.slice(0, 8) || 'Borrador'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -431,223 +393,19 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
 
       {/* Modales */}
       <AnimatePresence>
-        {editingJob && (
-          <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              className="bg-slate-900 border-t md:border border-slate-700 w-full max-w-4xl rounded-t-[3rem] md:rounded-[2.5rem] shadow-2xl flex flex-col h-[92vh] md:max-h-[90vh] overflow-hidden"
-            >
-              <div className="p-6 md:p-8 flex justify-between items-center bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl font-black text-white">GESTIÓN DE TRABAJO</h3>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{jobForm.id ? `#${jobForm.id.slice(0, 8).toUpperCase()}` : 'NUEVO REGISTRO'}</span>
-                </div>
-                <button onClick={() => setEditingJob(null)} className="p-3 bg-slate-800 rounded-full text-white active:scale-90 transition-transform"><X className="w-6 h-6" /></button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 pb-40">
-                {/* Formulario simplificado para thumb-reach */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Vehículo del Cliente</label>
-                      <select className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500" value={jobForm.vehicleId || ''} onChange={(e) => handleVehicleChange(e.target.value)}>
-                        <option value="">Elegir coche...</option>
-                        {vehicles.map(v => (<option key={v.id} value={v.id}>{v.plate} - {v.make} {v.model}</option>))}
-                      </select>
-                    </div>
-
-                    {/* Selector de Mecánico (Solo Visible al Editar) */}
-                    {jobForm.id && (
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                          <Users className="w-3 h-3" /> Mecánico Asignado
-                        </label>
-                        <select
-                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
-                          value={jobForm.mechanicId || ''}
-                          onChange={(e) => setJobForm({ ...jobForm, mechanicId: e.target.value })}
-                        >
-                          <option value="">Sin asignar...</option>
-                          {mechanics.map(m => (<option key={m.id} value={m.id}>{m.name} - {m.specialty}</option>))}
-                        </select>
-                      </div>
-                    )}
-                    {/* Fecha de Entrada */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                          <Clock className="w-3 h-3" /> Fecha de Entrada
-                        </label>
-                        <input
-                          type="datetime-local"
-                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
-                          value={jobForm.entryDate ? new Date(jobForm.entryDate).toISOString().slice(0, 16) : ''}
-                          onChange={(e) => setJobForm({ ...jobForm, entryDate: new Date(e.target.value).toISOString() })}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                          <Gauge className="w-3 h-3" /> Kilometraje
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500"
-                          value={jobForm.mileage || ''}
-                          onChange={(e) => setJobForm({ ...jobForm, mileage: Number(e.target.value) })}
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Descripción del Problema</label>
-                      <textarea
-                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 min-h-[100px] resize-none"
-                        value={jobForm.description}
-                        onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
-                        placeholder="Ej: Cambio de frenos traseros y revisión de niveles..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                        <FileText className="w-3 h-3 text-amber-500" /> Notas Internas / Hallazgos
-                      </label>
-                      <textarea
-                        className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-slate-300 font-medium outline-none focus:border-amber-500 min-h-[120px] resize-none text-sm"
-                        value={jobForm.notes || ''}
-                        onChange={(e) => setJobForm({ ...jobForm, notes: e.target.value })}
-                        placeholder="Apunta aquí detalles técnicos, piezas a pedir o fallos encontrados durante la reparación..."
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Horas Estimadas</label>
-                        <input
-                          type="number"
-                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 placeholder:text-slate-600"
-                          placeholder="0.00"
-                          value={jobForm.laborHours || ''}
-                          onChange={(e) => recalculateTotal(jobForm.items || [], e.target.value === '' ? 0 : Number(e.target.value), jobForm.laborPricePerHour || 0)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">€/Hora Taller</label>
-                        <input
-                          type="number"
-                          className="w-full bg-slate-800/50 border-2 border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 placeholder:text-slate-600"
-                          placeholder="40"
-                          value={jobForm.laborPricePerHour || ''}
-                          onChange={(e) => recalculateTotal(jobForm.items || [], jobForm.laborHours || 0, e.target.value === '' ? 0 : Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sección de Piezas y Materiales (Facturable) */}
-                  <div className="bg-slate-800/30 rounded-2xl p-4 border border-slate-800">
-                    <label className="text-[10px] font-black text-slate-500 uppercase mb-3 flex items-center gap-2">
-                      <Wrench className="w-3 h-3" /> Materiales y Repuestos (Cliente)
-                    </label>
-                    <div className="space-y-2 mb-3">
-                      {jobForm.items?.map(item => (
-                        <div key={item.id} className="flex gap-3 items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
-                          <div className="flex-1 text-sm text-white font-medium">{item.description}</div>
-                          <div className="text-xs text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded">x{item.quantity}</div>
-                          <div className="min-w-[80px] text-sm text-blue-400 font-bold text-right font-mono">{item.unitPrice.toFixed(2)}€</div>
-                          <button onClick={() => removeItem(item.id)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      ))}
-                      {(!jobForm.items || jobForm.items.length === 0) && <p className="text-xs text-slate-600 italic text-center py-2">No hay materiales añadidos</p>}
-                    </div>
-                    <div className="flex gap-2 items-start bg-slate-900/50 p-2 rounded-xl border border-dashed border-slate-700">
-                      <input className="flex-1 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 placeholder:text-slate-600" placeholder="Descripción pieza..." value={newItem.description} onChange={e => setNewItem({ ...newItem, description: e.target.value })} />
-                      <input type="number" className="w-16 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-center placeholder:text-slate-600" placeholder="Unds." value={newItem.quantity} onChange={e => setNewItem({ ...newItem, quantity: e.target.value === '' ? '' : Number(e.target.value) })} />
-                      <input type="number" className="w-20 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-blue-500 text-right placeholder:text-slate-600" placeholder="Precio €" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })} />
-                      <button onClick={handleAddItem} className="mt-1 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg shadow-lg shadow-blue-900/20 active:scale-95 transition-all"><Plus className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-
-                  {/* Sección de Gastos Internos (No Facturable) */}
-                  <div className="bg-red-900/5 rounded-2xl p-4 border border-red-900/10">
-                    <label className="text-[10px] font-black text-red-400/70 uppercase mb-3 flex items-center gap-2">
-                      <Wallet className="w-3 h-3" /> Gastos Internos (Costo Real)
-                    </label>
-                    <div className="space-y-2 mb-3">
-                      {jobExpenses.map(exp => (
-                        <div key={exp.id} className="flex gap-3 items-center bg-slate-900/50 p-3 rounded-xl border border-red-900/10">
-                          <div className="flex-1 text-sm text-slate-300 font-medium">{exp.description}</div>
-                          <div className="min-w-[80px] text-sm text-red-400 font-bold text-right font-mono">-{exp.amount.toFixed(2)}€</div>
-                        </div>
-                      ))}
-                      {jobExpenses.length === 0 && <p className="text-xs text-slate-600 italic text-center py-2">Sin gastos internos registrados</p>}
-                    </div>
-                    <div className="flex gap-2 items-start bg-slate-900/50 p-2 rounded-xl border border-dashed border-red-900/20">
-                      <input className="flex-1 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-red-500 placeholder:text-slate-600" placeholder="Gasto interno (ej: envío, proveedor...)" value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} />
-                      <input type="number" className="w-24 bg-transparent border-b border-slate-700 py-2 text-sm text-white outline-none focus:border-red-500 text-right placeholder:text-slate-600" placeholder="Coste €" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value === '' ? '' : Number(e.target.value) })} />
-                      <button onClick={handleAddJobExpense} className="mt-1 bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg active:scale-95 transition-all"><Plus className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/50 rounded-[2rem] p-6 border-2 border-slate-800/50">
-                  <h4 className="font-black text-xs text-slate-500 uppercase tracking-widest mb-6">Desglose Económico</h4>
-                  <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center text-slate-400 font-bold uppercase text-[10px]">
-                      <span>Subtotal Mano de Obra</span>
-                      <span className="text-white">{((jobForm.laborHours || 0) * (jobForm.laborPricePerHour || 0)).toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between items-center text-slate-400 font-bold uppercase text-[10px]">
-                      <span>Total Repuestos</span>
-                      <span className="text-white">{(jobForm.items?.reduce((a, b) => a + (b.quantity * b.unitPrice), 0) || 0).toFixed(2)} €</span>
-                    </div>
-                    <div className="h-px bg-slate-800 my-4" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-black text-white italic">TOTAL</span>
-                      <span className="text-2xl font-black text-blue-500">{jobForm.total?.toLocaleString()} €</span>
-                    </div>
-
-                    {/* Beneficio Neto (Solo Visible Internamente) */}
-                    <div className="mt-4 pt-4 border-t border-slate-800/50">
-                      <div className="flex justify-between items-center bg-emerald-900/10 p-3 rounded-xl border border-emerald-500/10">
-                        <span className="text-xs font-black text-emerald-500 uppercase flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4" /> Beneficio Neto Estimado
-                        </span>
-                        <span className="text-lg font-black text-emerald-400">
-                          {((jobForm.total || 0) - jobExpenses.reduce((sum, e) => sum + e.amount, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 mt-1 text-right">
-                        *Total - Gastos Internos
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <button onClick={() => setShowBudgetPreview(true)} className="py-4 bg-slate-800 text-blue-400 border border-slate-700 hover:bg-slate-700 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-                    <FileText className="w-5 h-5" /> PREVISUALIZAR
-                  </button>
-                  {/* Botón Archivar/Desarchivar en Modal */}
-                  {jobForm.status === JobStatus.DELIVERED && (
-                    <button onClick={() => toggleArchiveJob(jobForm as Job)} className={`py-4 border text-slate-300 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all ${jobForm.isArchived ? 'bg-blue-600/20 border-blue-500/50 hover:bg-blue-600 hover:border-transparent text-blue-100' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                      <FileDown className="w-5 h-5" /> {jobForm.isArchived ? 'RECUPERAR' : 'ARCHIVAR'}
-                    </button>
-                  )}
-                  <button onClick={saveJobChanges} className="py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black tracking-tight shadow-lg shadow-blue-900/40 active:scale-95 transition-all">
-                    GUARDAR
-                  </button>
-                </div>
-                {jobForm.id && (
-                  <button onClick={() => requestDeleteJob(jobForm.id)} className="w-full py-4 bg-red-600/10 border-2 border-red-500/20 text-red-500 rounded-3xl font-black text-sm tracking-widest active:scale-95 transition-all uppercase">
-                    Eliminar Trabajo
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </div>
+        {editingJob && !showBudgetPreview && (
+          <JobDetailModal
+            job={editingJob}
+            vehicles={vehicles}
+            mechanics={mechanics}
+            clients={clients}
+            initialExpenses={expenses.filter(e => e.jobId === editingJob.id)}
+            onClose={() => setEditingJob(null)}
+            onSave={handleSaveJob}
+            onDelete={requestDeleteJob}
+            onArchiveToggle={toggleArchiveJob}
+            onShowBudget={handleShowBudgetPreview}
+          />
         )}
 
         {/* Budget Preview Modal */}
@@ -688,13 +446,13 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                   <div className="grid grid-cols-2 gap-8 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">CLIENTE</label>
-                      <p className="font-bold text-sm uppercase">{clients.find(c => c.id === jobForm.clientId)?.name || 'Cliente Desconocido'}</p>
-                      <p className="text-xs text-slate-500">{clients.find(c => c.id === jobForm.clientId)?.phone}</p>
+                      <p className="font-bold text-sm uppercase">{clients.find(c => c.id === editingJob.clientId)?.name || 'Cliente Desconocido'}</p>
+                      <p className="text-xs text-slate-500">{clients.find(c => c.id === editingJob.clientId)?.phone}</p>
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">VEHÍCULO</label>
                       {(() => {
-                        const v = vehicles.find(v => v.id === jobForm.vehicleId);
+                        const v = vehicles.find(v => v.id === editingJob.vehicleId);
                         return v ? (
                           <>
                             <p className="font-bold text-sm uppercase">{v.make} {v.model}</p>
@@ -717,19 +475,19 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {/* Mano de Obra */}
-                        {jobForm.laborHours > 0 && (
+                        {(editingJob.laborHours || 0) > 0 && (
                           <tr>
                             <td className="py-3">
                               <p className="font-bold">Mano de Obra Especializada</p>
                               <p className="text-xs text-slate-500">Servicio técnico y reparaciones</p>
                             </td>
-                            <td className="py-3 text-center">{jobForm.laborHours}h</td>
-                            <td className="py-3 text-right font-bold">{((jobForm.laborHours || 0) * (jobForm.laborPricePerHour || 0)).toFixed(2)}€</td>
+                            <td className="py-3 text-center">{editingJob.laborHours}h</td>
+                            <td className="py-3 text-right font-bold">{((editingJob.laborHours || 0) * (editingJob.laborPricePerHour || 0)).toFixed(2)}€</td>
                           </tr>
                         )}
 
                         {/* Materiales */}
-                        {jobForm.items?.map((item, idx) => (
+                        {editingJob.items?.map((item, idx) => (
                           <tr key={idx}>
                             <td className="py-3">
                               <p className="font-bold">{item.description}</p>
@@ -746,7 +504,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                   <div className="flex flex-col items-end pt-6 border-t-2 border-slate-900 space-y-2">
                     <div className="flex justify-between w-48 text-sm">
                       <span className="text-slate-500 font-medium">Subtotal</span>
-                      <span className="font-bold">{jobForm.total?.toFixed(2)}€</span>
+                      <span className="font-bold">{editingJob.total?.toFixed(2)}€</span>
                     </div>
                     <div className="flex justify-between w-48 text-sm items-center">
                       <div className="flex items-center gap-2">
@@ -759,13 +517,13 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                         </button>
                       </div>
                       <span className={`font-bold ${applyVat ? 'text-slate-900' : 'text-slate-300'}`}>
-                        {applyVat ? ((jobForm.total || 0) * 0.21).toFixed(2) : '0.00'}€
+                        {applyVat ? ((editingJob.total || 0) * 0.21).toFixed(2) : '0.00'}€
                       </span>
                     </div>
                     <div className="flex justify-between w-48 text-xl border-t border-slate-200 pt-2 mt-2">
                       <span className="font-black">TOTAL</span>
                       <span className="font-black text-blue-600">
-                        {applyVat ? ((jobForm.total || 0) * 1.21).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : jobForm.total?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
+                        {applyVat ? ((editingJob.total || 0) * 1.21).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : editingJob.total?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
                       </span>
                     </div>
                   </div>
