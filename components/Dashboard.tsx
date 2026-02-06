@@ -48,6 +48,19 @@ export const Dashboard: React.FC = () => {
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [showVehicleSuggestions, setShowVehicleSuggestions] = useState(false);
 
+  // Optimize Wizard Search
+  const filteredClients = React.useMemo(() => {
+    if (!clientSearch) return [];
+    const lower = clientSearch.toLowerCase();
+    return clients.filter(c => c.name.toLowerCase().includes(lower) || c.phone.includes(lower));
+  }, [clients, clientSearch]);
+
+  const filteredVehicles = React.useMemo(() => {
+    if (!vehicleSearch) return [];
+    const upper = vehicleSearch.toUpperCase();
+    return vehicles.filter(v => v.plate.includes(upper));
+  }, [vehicles, vehicleSearch]);
+
 
   useEffect(() => { loadData(); }, []);
 
@@ -250,8 +263,8 @@ export const Dashboard: React.FC = () => {
                       <Search className="absolute left-5 top-6 w-5 h-5 text-slate-500" />
                       {showClientSuggestions && clientSearch.length > 0 && !wizardData.clientId && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl z-50 max-h-48 overflow-y-auto">
-                          {clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()) || c.phone.includes(clientSearch)).length > 0 ? (
-                            clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()) || c.phone.includes(clientSearch)).map(c => (
+                          {filteredClients.length > 0 ? (
+                            filteredClients.map(c => (
                               <div key={c.id} onClick={() => selectClient(c)} className="p-4 hover:bg-slate-800 cursor-pointer border-b border-slate-800/50 last:border-0">
                                 <p className="font-bold text-white">{c.name}</p>
                                 <p className="text-xs text-slate-500">{c.phone}</p>
@@ -305,12 +318,8 @@ export const Dashboard: React.FC = () => {
                           <Search className="absolute left-5 top-6 w-5 h-5 text-slate-500" />
                           {showVehicleSuggestions && vehicleSearch.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl z-50 max-h-48 overflow-y-auto">
-                              {vehicles.filter(v =>
-                                v.plate.includes(vehicleSearch)
-                              ).length > 0 ? (
-                                vehicles.filter(v =>
-                                  v.plate.includes(vehicleSearch)
-                                ).map(v => (
+                              {filteredVehicles.length > 0 ? (
+                                filteredVehicles.map(v => (
                                   <div key={v.id} onClick={() => selectVehicle(v)} className="p-4 hover:bg-slate-800 cursor-pointer border-b border-slate-800/50 last:border-0">
                                     <p className="font-bold text-white">{v.plate}</p>
                                     <p className="text-xs text-slate-500">{v.make} {v.model}</p>

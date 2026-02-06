@@ -92,9 +92,14 @@ export const Clients: React.FC = () => {
     c.phone.includes(searchTerm)
   );
 
-  const getClientVehicles = (clientId: string) => {
-    return vehicles.filter(v => v.clientId === clientId);
-  };
+  const vehiclesByClient = React.useMemo(() => {
+    const groups: Record<string, Vehicle[]> = {};
+    vehicles.forEach(v => {
+      if (!groups[v.clientId]) groups[v.clientId] = [];
+      groups[v.clientId].push(v);
+    });
+    return groups;
+  }, [vehicles]);
 
   return (
     <div className="p-8 h-full overflow-hidden flex flex-col">
@@ -125,7 +130,7 @@ export const Clients: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-4 custom-scrollbar flex-1">
         {filteredClients.map((client, i) => {
-          const clientCars = getClientVehicles(client.id);
+          const clientCars = vehiclesByClient[client.id] || [];
 
           return (
             <motion.div
@@ -137,9 +142,9 @@ export const Clients: React.FC = () => {
             >
               <div className="flex items-start gap-4 mb-4 relative">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg shrink-0 ${i % 4 === 0 ? 'bg-blue-500 shadow-blue-500/20' :
-                    i % 4 === 1 ? 'bg-purple-500 shadow-purple-500/20' :
-                      i % 4 === 2 ? 'bg-emerald-500 shadow-emerald-500/20' :
-                        'bg-rose-500 shadow-rose-500/20'
+                  i % 4 === 1 ? 'bg-purple-500 shadow-purple-500/20' :
+                    i % 4 === 2 ? 'bg-emerald-500 shadow-emerald-500/20' :
+                      'bg-rose-500 shadow-rose-500/20'
                   }`}>
                   {client.name.charAt(0)}
                 </div>

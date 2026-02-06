@@ -59,6 +59,22 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
   const [showBudgetPreview, setShowBudgetPreview] = useState(false);
   const [applyVat, setApplyVat] = useState(false);
 
+  // Optimize lookups
+  const vehicleMap = React.useMemo(() => {
+    return vehicles.reduce((acc, v) => ({ ...acc, [v.id]: { desc: `${v.make} ${v.model} (${v.plate})` } }), {} as Record<string, { desc: string }>);
+  }, [vehicles]);
+
+  const jobsByStatus = React.useMemo(() => {
+    const groups: Record<string, Job[]> = {};
+    Object.values(JobStatus).forEach(s => groups[s] = []);
+    jobs.forEach(j => {
+      if (!j.isArchived && groups[j.status]) {
+        groups[j.status].push(j);
+      }
+    });
+    return groups;
+  }, [jobs]);
+
   // History / Archiving State
   const [showHistory, setShowHistory] = useState(false);
 
@@ -294,70 +310,72 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
       {!showHistory ? (
         <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-8 pb-32">
           <div className="flex gap-4 md:gap-8 h-full min-w-full md:min-w-[1200px]">
-            {columns.map((status) => (
-              <div key={status} className="flex-1 min-w-[85vw] md:min-w-[350px] flex flex-col bg-slate-900/40 border border-slate-800/50 rounded-[2.5rem] p-4 md:p-6">
-                <div className="flex items-center justify-between mb-6 px-4">
-                  <h3 className="font-black text-xs uppercase tracking-[0.2em] text-slate-500">{status}</h3>
-                  <span className="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-full text-slate-300 border border-slate-700">
-                    {jobs.filter(j => j.status === status && !j.isArchived).length}
-                  </span>
-                </div>
+            {columns.map((status) => {
+              const statusJobs = jobsByStatus[status] || [];
+              return (
+                <div key={status} className="flex-1 min-w-[85vw] md:min-w-[350px] flex flex-col bg-slate-900/40 border border-slate-800/50 rounded-[2.5rem] p-4 md:p-6">
+                  <div className="flex items-center justify-between mb-6 px-4">
+                    <h3 className="font-black text-xs uppercase tracking-[0.2em] text-slate-500">{status}</h3>
+                    <span className="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-full text-slate-300 border border-slate-700">
+                      {statusJobs.length}
+                    </span>
+                  </div>
 
-                <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1">
-                  {jobs.filter(j => j.status === status && !j.isArchived).length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center opacity-20 py-10">
-                      <Wrench className="w-12 h-12 mb-4" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Sin tareas</span>
-                    </div>
-                  ) : (
-                    jobs.filter(j => j.status === status && !j.isArchived).map((job) => (
-                      <motion.div
-                        key={job.id}
-                        layoutId={job.id}
-                        onClick={() => openEditModal(job)}
-                        className="bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50 p-5 rounded-3xl cursor-pointer group shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all"
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg">#{job.id.slice(0, 5).toUpperCase()}</span>
-                          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <h4 className="font-black text-white mb-2 text-sm leading-tight group-hover:text-blue-400 transition-colors uppercase">{job.description}</h4>
-                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 mb-4 bg-slate-900/50 p-2 rounded-xl">
-                          <Car className="w-4 h-4 text-blue-500" /> <span className="truncate">{getVehicleInfo(job.vehicleId)}</span>
-                        </div>
+                  <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1">
+                    {statusJobs.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center opacity-20 py-10">
+                        <Wrench className="w-12 h-12 mb-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Sin tareas</span>
+                      </div>
+                    ) : (
+                      statusJobs.map((job) => (
+                        <div
+                          key={job.id}
+                          onClick={() => openEditModal(job)}
+                          className="bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50 p-5 rounded-3xl cursor-pointer group shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all"
+                        >
+                          <div className="flex justify-between items-start mb-4">
+                            <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg">#{job.id.slice(0, 5).toUpperCase()}</span>
+                            <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <h4 className="font-black text-white mb-2 text-sm leading-tight group-hover:text-blue-400 transition-colors uppercase">{job.description}</h4>
+                          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 mb-4 bg-slate-900/50 p-2 rounded-xl">
+                            <Car className="w-4 h-4 text-blue-500" /> <span className="truncate">{vehicleMap[job.vehicleId]?.desc || 'Desconocido'}</span>
+                          </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                          <div className="text-sm font-black text-white">{job.total.toLocaleString()} €</div>
-                          <div className="flex gap-1">
-                            {status !== JobStatus.PENDING && (
-                              <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) - 1]); }} className="p-2 hover:bg-slate-700 rounded-xl text-slate-500 active:scale-90 transition-all">
-                                <ChevronLeft className="w-4 h-4" />
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                            <div className="text-sm font-black text-white">{job.total.toLocaleString()} €</div>
+                            <div className="flex gap-1">
+                              {status !== JobStatus.PENDING && (
+                                <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) - 1]); }} className="p-2 hover:bg-slate-700 rounded-xl text-slate-500 active:scale-90 transition-all">
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                              )}
+                              {status !== JobStatus.DELIVERED && (
+                                <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) + 1]); }} className="p-2 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl active:scale-95 transition-all">
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              )}
+                              {/* Botón de Archivar solo si está entregado */}
+                              {status === JobStatus.DELIVERED && (
+                                <button onClick={(e) => { e.stopPropagation(); toggleArchiveJob(job); }} className="p-2 ml-1 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl active:scale-95 transition-all" title="Archivar Trabajo">
+                                  <FileDown className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button onClick={(e) => { e.stopPropagation(); requestDeleteJob(job.id); }} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-xl active:scale-95 transition-all">
+                                <Trash2 className="w-4 h-4" />
                               </button>
-                            )}
-                            {status !== JobStatus.DELIVERED && (
-                              <button onClick={(e) => { e.stopPropagation(); updateJobStatus(job, columns[columns.indexOf(status) + 1]); }} className="p-2 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl active:scale-95 transition-all">
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
-                            )}
-                            {/* Botón de Archivar solo si está entregado */}
-                            {status === JobStatus.DELIVERED && (
-                              <button onClick={(e) => { e.stopPropagation(); toggleArchiveJob(job); }} className="p-2 ml-1 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl active:scale-95 transition-all" title="Archivar Trabajo">
-                                <FileDown className="w-4 h-4" />
-                              </button>
-                            )}
-                            <button onClick={(e) => { e.stopPropagation(); requestDeleteJob(job.id); }} className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-xl active:scale-95 transition-all">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            </div>
                           </div>
                         </div>
-                      </motion.div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -380,7 +398,7 @@ export const Jobs: React.FC<JobBoardProps> = ({ onNotify, pendingJobId, onClearP
                     <div>
                       <h4 className="font-black text-white uppercase text-sm mb-1">{job.description}</h4>
                       <div className="flex items-center gap-3 text-xs text-slate-500 font-bold">
-                        <span className="flex items-center gap-1"><Car className="w-3 h-3" /> {getVehicleInfo(job.vehicleId)}</span>
+                        <span className="flex items-center gap-1"><Car className="w-3 h-3" /> {vehicleMap[job.vehicleId]?.desc || 'Desconocido'}</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(job.entryDate).toLocaleDateString()}</span>
                       </div>
                     </div>
