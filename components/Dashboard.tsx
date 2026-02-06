@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Activity, CheckCircle, Wallet, TrendingUp, Plus, User, Car, Wrench, ChevronRight, ChevronLeft, X, Euro, Gauge, Sparkles, Search } from 'lucide-react';
 import { dbService } from '../services/dbService';
-import { KPIData, JobStatus, Client, Vehicle, Job } from '../types';
+import { KPIData, JobStatus, Client, Vehicle, Job, Expense } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const StatCard = ({ title, value, icon: Icon, color, delay }: any) => (
@@ -31,6 +31,7 @@ export const Dashboard: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [wizardData, setWizardData] = useState({
@@ -52,16 +53,18 @@ export const Dashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [statsData, clientsData, vehiclesData, jobsData] = await Promise.all([
+      const [statsData, clientsData, vehiclesData, jobsData, expensesData] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getClients(),
         dbService.getVehicles(),
-        dbService.getJobs()
+        dbService.getJobs(),
+        dbService.getExpenses()
       ]);
       setStats(statsData);
       setClients(clientsData);
       setVehicles(vehiclesData);
       setJobs(jobsData);
+      setExpenses(expensesData);
     } catch (e) { console.error("Error cargando dashboard:", e); }
   };
 
@@ -122,25 +125,34 @@ export const Dashboard: React.FC = () => {
     setShowVehicleSuggestions(false);
   };
 
-  const getMonthlyPerformance = () => {
+  const getAnnualPerformance = () => {
     const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const data = [];
+    const currentYear = now.getFullYear();
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-    for (let i = 1; i <= daysInMonth; i++) {
-      const dailyRevenue = jobs
-        .filter(j => {
-          const d = new Date(j.entryDate);
-          return d.getDate() === i && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        })
-        .reduce((acc, curr) => acc + curr.total, 0);
+    // Initialize with all months
+    const data = months.map(name => ({ name, profit: 0 }));
 
-      data.push({ name: i.toString(), r: dailyRevenue });
-    }
+    // Calculate job revenue per month
+    jobs.forEach(j => {
+      const d = new Date(j.entryDate);
+      if (d.getFullYear() === currentYear && (j.status === JobStatus.DELIVERED || j.status === JobStatus.COMPLETED)) {
+        data[d.getMonth()].profit += (Number(j.total) || 0);
+      }
+    });
+
+    // Subtract expenses per month
+    expenses.forEach(e => {
+      const d = new Date(e.date);
+      if (d.getFullYear() === currentYear) {
+        data[d.getMonth()].profit -= (Number(e.amount) || 0);
+      }
+    });
+
     return data;
   };
 
-  const chartData = getMonthlyPerformance();
+  const chartData = getAnnualPerformance();
 
   if (!stats) return <div className="h-full flex items-center justify-center bg-slate-950"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin shadow-2xl shadow-blue-500/50"></div></div>;
 
@@ -177,22 +189,20 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
           <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl">
             <h3 className="text-xs font-black text-slate-500 mb-8 uppercase tracking-[0.2em] flex items-center gap-3">
-              <TrendingUp className="w-4 h-4 text-blue-500" /> Rendimiento Mensual
+              <TrendingUp className="w-4 h-4 text-blue-500" /> Rendimiento Anual
             </h3>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorR" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.5} />
                   <XAxis dataKey="name" stroke="#475569" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '20px', fontSize: '12px' }} />
-                  <Area type="monotone" dataKey="r" stroke="#3b82f6" strokeWidth={4} fill="url(#colorR)" />
-                </AreaChart>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '20px', fontSize: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value: number) => [`${value.toLocaleString()} €`, 'Beneficio']}
+                  />
+                  <Bar dataKey="profit" fill="#3b82f6" radius={[4, 4, 4, 4]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>

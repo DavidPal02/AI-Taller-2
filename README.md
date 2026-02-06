@@ -1,20 +1,66 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🚗 Taller Peter Manager
 
-# Run and deploy your AI Studio app
+**Sistema Integral de Gestión para Talleres Mecánicos**
 
-This contains everything you need to run your app locally.
+Una aplicación web moderna y potente diseñada para digitalizar y optimizar todas las operaciones de un taller mecánico automotriz. Construida pensando en la movilidad y la eficiencia, permite gestionar desde la recepción del vehículo hasta la facturación final.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1KHi02mVUrpczt9Qas4bw8pzUN7oXtepH
+---
 
-## Run Locally
+## ⚡️ Características Principales
 
-**Prerequisites:**  Node.js
+### 📊 Dashboard Inteligente
+- **Visión Global**: Panel de control con KPIs financieros en tiempo real (Ingresos, Gastos, Beneficio Neto).
+- **Rendimiento**: Gráficas de facturación diaria y carga de trabajo por mecánico.
 
+### 🛠 Gestión de Trabajos (Flujo Operativo)
+- **Tablero Kanban**: Visualiza el estado de cada reparación (Pendiente, En Proceso, Completado, Entregado).
+- **Ficha de Trabajo**: Registro detallado con descripción de avería, repuestos, mano de obra y seguimiento de kilometraje.
+- **Control Financiero**: Cálculo automático de costes, margen de beneficio neto (interno) y generación de presupuestos para el cliente (PDF).
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 🚘 Flota y Clientes
+- **Historial Completo**: Acceso rápido al historial de reparaciones de cada vehículo.
+- **Alertas ITV**: Cálculo automático y notificaciones visuales del estado de la ITV.
+- **Base de Datos CRM**: Gestión sencilla de clientes y vinuculación con sus vehículos.
+
+### 📱 Diseño "Mobile-First"
+- **App de Bolsillo**: Interfaz optimizada para usar cómodamente desde el móvil (iPhone/Android).
+- **Recepción Rápida**: Asistente paso a paso para dar de alta nuevos trabajos a pie de calle.
+
+## 🛠 Tecnologías
+
+Este proyecto está construido con un stack tecnológico moderno para garantizar velocidad y escalabilidad:
+
+- **Frontend**: [React](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Estilos**: [Tailwind CSS](https://tailwindcss.com/) (Diseño responsivo y glassmorphism)
+- **Backend & Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL + Auth)
+- **Gráficos**: Recharts
+- **Iconos**: Lucide React
+
+## 🚀 Instalación y Ejecución
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/DavidPal02/AI-Taller-2.git
+   cd Taller-Peter
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar Variables de Entorno**
+   Crea un archivo `.env.local` con tus credenciales de Supabase:
+   ```env
+   VITE_SUPABASE_URL=tu_url_supabase
+   VITE_SUPABASE_ANON_KEY=tu_clave_anonima
+   ```
+
+4. **Iniciar Servidor de Desarrollo**
+   ```bash
+   npm run dev
+   ```
+   La aplicación estará disponible en `http://localhost:3000`.
+
+---
+*Desarrollado para Taller Peter - v1.4.2*
